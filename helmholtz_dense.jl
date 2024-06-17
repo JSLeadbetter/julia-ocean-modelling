@@ -29,41 +29,43 @@ function compute_u(x::Float64, y::Float64)
     return ((x + 1)^2) * (x - 1) * (y + 1) * (y - 1) + 2sin(2*pi*x) * sin(pi*y)
 end
 
+function solve_modified_helmholtz(alpha::Float64, M::Int64, b_rhs_func::Function, x1::Float64, x2::Float64, y1::Float64, y2::Float64)
+    # Calculate the stepsize using the number of discrete points in our grid.
+    dx = 2 / M
+
+    # Construct our matrix A.
+    A = construct_A(M, alpha, dx)
+
+    # Define the points on our domain.
+    xs = range(x1+dx, x2-dx, length=M-1)
+    ys = range(y1+dx, y2-dx, length=M-1)
+
+    # Construct the RHS of our equation.
+    b = vec(inflate(b_rhs_func, xs, ys))
+
+    # Solve the system.
+    return A \ b
+end
+
 # Discrete points in our grid.
 M = 64
 
 # Modified helmholtz parameter.
 alpha = 3.0
 
-# Stepsize.
-dx = 2 / M
-
-# Domain boundary.
-x_b1 = -1
-x_b2 = 1
-y_b1 = -1
-y_b2 = 1
-
-# Construct our matrix A.
-A = construct_A(M, alpha, dx)
-
-# Define the points on our domain.
-xs = range(x_b1+dx, x_b2-dx, length=M-1)
-ys = range(y_b1+dx, y_b2-dx, length=M-1)
-
-# Construct the RHS of our equation.
-b = vec(inflate(b_mp, xs, ys))
-
 # Solve the system.
-u = A \ b
+# u = solve_modified_helmholtz(alpha, M, b_mp)
 
-# Reshape the solution for plotting.
-u_re = reshape(u, M-1, M-1)
+# xs = range(x_b1+dx, x_b2-dx, length=M-1)
+# ys = range(y_b1+dx, y_b2-dx, length=M-1)
 
-# Compute the true solution to the equation.
-u_true = vec(inflate(compute_u, xs, ys))
-# and reshape for plotting.
-u_true_re = reshape(u_true, M-1, M-1)
+# # Reshape the solution for plotting.
+# u_re = reshape(u, M-1, M-1)
 
-# Compute the 2-norm between our numerical approximation and the true solution.
-norm(u - u_true)
+# # Compute the true solution to the equation.
+# u_true = vec(inflate(compute_u, xs, ys))
+# # and reshape for plotting.
+# u_true_re = reshape(u_true, M-1, M-1)
+
+# # Compute the 2-norm between our numerical approximation and the true solution.
+# norm(u - u_true)

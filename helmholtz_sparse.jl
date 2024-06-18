@@ -1,8 +1,9 @@
 using LinearAlgebra
 using SparseArrays
+using IterativeSolvers
+using LinearSolve
 
-speye(n::Int) = spdiagm(ones(n))
-inflate(f, xs, ys) = [f(x,y) for x in xs, y in ys]
+include("toolbox.jl")
 
 function b_mp(x::Float64, y::Float64)
     term_1 = 2 * ((x + 1)^2) * (x - 1)
@@ -21,37 +22,61 @@ end
 
 # Our matrix A in our linear system Ax = b.
 function construct_spA(M::Int, alpha::Float64, dx::Float64)
-	B = construct_B(M, alpha, dx)
+	B = construct_spB(M, alpha, dx)
     A = kron(speye(M-1), B) + kron(spdiagm(1 => ones(M-2), -1 => ones(M-2)), speye(M-1))
 	return A * 1 / (dx)^2
 end
 
-function sp_solve_modified_helmholtz(alpha::Float64, M::Int64, b_rhs_func::Function, x1::Float64, x2::Float64, y1::Float64, y2::Float64)
+function get_dx(domain::Vector{Float64}, M::Int64)
+    x1 = domain[1]
+    x2 = domain[2]
+    x_length = x2 - x1
+    return x_length / M
+end
+
+function sp_solve_modified_helmholtz(alpha::Float64, M::Int64, b_rhs_func::Function, domain::Vector{Float64})
     # Stepsize.
-    dx = 2 / M
+    dx = get_dx(domain, M)
 
     # Construct our matrix A.
-    A = construct_A(M, alpha, dx)
+    A = construct_spA(M, alpha, dx)
 
     # Define the points on our domain.
-    xs = range(x1+dx, x2-dx, length=M-1)
-    ys = range(y1+dx, y2-dx, length=M-1)
+    xs, ys = get_xs_ys(domain, M)
 
     # Construct the RHS of our equation.
     b = vec(inflate(b_rhs_func, xs, ys))
 
     # Solve the system.
-    return A \ b
+    prob = LinearProblem(A, b)
+    linsolve = init(prob)
+    return solve(linsolve).u
 end
 
+function compute_u(x::Float64, y::Float64)
+    return ((x + 1)^2) * (x - 1) * (y + 1) * (y - 1) + 2sin(2*pi*x) * sin(pi*y)
+end
 
-# Discrete points in our grid.
-M = 4
+function get_xs_ys(domain::Vector{Float64}, M::Int64)
+    x1 = domain[1]
+    x2 = domain[2]
+    y1 = domain[3]
+    y2 = domain[4]
 
-# Modified helmholtz parameter.
+    dx = get_dx(domain, M)
+    
+    xs = range(x1+dx, x2-dx, length=M-1)
+    ys = range(y1+dx, y2-dx, length=M-1)
+    return xs, ys
+end
+
 alpha = 3.0
+domain = [-1.0, 1.0, -1.0, 1.0]
+M_list = [16, 32, 64, 128, 256, 512]
 
-# Stepsize.
-dx = 2 / M
-
-# solve_modified_helmholtz(alpha, M, b_mp)
+for M in M_list
+    u = sp_solve_modified_helmholtz(alpha, M, b_mp, domain)
+    xs, ys = get_xs_ys(domain, M)
+    u_true = vec(inflate(compute_u, xs, ys))
+    println(norm(u - u_true))
+end

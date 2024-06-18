@@ -9,11 +9,8 @@ M = 64
 # Modified helmholtz parameter.
 alpha = 3.0
 
-x1 = -1
-x2 = 1
-y1 = -1
-y2 = 1
-
+# x1, x2, y1, y2
+domain = [-1.0, 1.0, -1.0, 1.0]
 
 println("Constructing A")
 @btime construct_A(M, alpha, dx)
@@ -24,5 +21,5 @@ println("Constructing B")
 @btime construct_spB(M, alpha, dx)
 
 println("Solving for u")
-@btime solve_modified_helmholtz(alpha, M, b_mp, x1, x2, y1, y2)
-@btime sp_solve_modified_helmholtz(alpha, M, b_mp, x1, x2, y1, y2)
+@btime solve_modified_helmholtz(alpha, M, b_mp, domain)
+@btime sp_solve_modified_helmholtz(alpha, M, b_mp, domain)

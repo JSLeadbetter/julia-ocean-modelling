@@ -1,9 +1,6 @@
 using LinearAlgebra
 using Plots
-
-# Helper functions.
-eye(n::Int) = Matrix{Float64}(I, n, n)
-inflate(f, xs, ys) = [f(x,y) for x in xs, y in ys]
+include("toolbox.jl")
 
 function b_mp(x::Float64, y::Float64)
     term_1 = 2 * ((x + 1)^2) * (x - 1)
@@ -29,9 +26,14 @@ function compute_u(x::Float64, y::Float64)
     return ((x + 1)^2) * (x - 1) * (y + 1) * (y - 1) + 2sin(2*pi*x) * sin(pi*y)
 end
 
-function solve_modified_helmholtz(alpha::Float64, M::Int64, b_rhs_func::Function, x1::Float64, x2::Float64, y1::Float64, y2::Float64)
+function solve_modified_helmholtz(alpha::Float64, M::Int64, b_rhs_func::Function, domain::Vector{Float64})
     # Calculate the stepsize using the number of discrete points in our grid.
     dx = 2 / M
+
+    x1 = domain[1]
+    x2 = domain[2]
+    y1 = domain[3]
+    y2 = domain[4]
 
     # Construct our matrix A.
     A = construct_A(M, alpha, dx)

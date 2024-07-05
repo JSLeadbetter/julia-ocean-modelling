@@ -70,13 +70,13 @@ function get_xs_ys(domain::Vector{Float64}, M::Int64)
     return xs, ys
 end
 
-alpha = 3.0
-domain = [-1.0, 1.0, -1.0, 1.0]
-M_list = [16, 32, 64, 128, 256, 512]
+# alpha = 3.0
+# domain = [-1.0, 1.0, -1.0, 1.0]
+# M_list = [16, 32, 64, 128, 256, 512]
 
-for M in M_list
-    u = sp_solve_modified_helmholtz(alpha, M, b_mp, domain)
-    xs, ys = get_xs_ys(domain, M)
-    u_true = vec(inflate(compute_u, xs, ys))
-    println(norm(u - u_true))
-end
+# for M in M_list
+#     u = sp_solve_modified_helmholtz(alpha, M, b_mp, domain)
+#     xs, ys = get_xs_ys(domain, M)
+#     u_true = vec(inflate(compute_u, xs, ys))
+#     println(norm(u - u_true))
+# end

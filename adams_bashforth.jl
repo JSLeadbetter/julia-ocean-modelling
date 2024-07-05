@@ -56,20 +56,20 @@ function adams_bashforth_3rd_order(h::Float64, f::Function, y_0::Float64, M::Flo
     return u, t
 end
 
-f(t, y) = y
-y_true(t) = exp(t)
+# f(t, y) = y
+# y_true(t) = exp(t)
 
-y_0 = 1.0
-h = 0.25
-T = 5.0
+# y_0 = 1.0
+# h = 0.25
+# T = 5.0
 
-t = range(0, T, step=h)
-u_eulers, t_eulers = eulers_method(h, f, y_0, T)
-u_2step, _ = two_step_AB(h, f, y_0, T)
-u_3step, _ = adams_bashforth_3rd_order(h, f, y_0, T)
-u_true = y_true.(t)
+# t = range(0, T, step=h)
+# u_eulers, t_eulers = eulers_method(h, f, y_0, T)
+# u_2step, _ = two_step_AB(h, f, y_0, T)
+# u_3step, _ = adams_bashforth_3rd_order(h, f, y_0, T)
+# u_true = y_true.(t)
 
-plot(t, u_eulers, label="Euler's Method")
-plot!(t, u_2step, label="2nd Order Adams-Bashforth")
-plot!(t, u_3step, label="3rd Order")
-plot!(t, u_true, label="exp(t)")
+# plot(t, u_eulers, label="Euler's Method")
+# plot!(t, u_2step, label="2nd Order Adams-Bashforth")
+# plot!(t, u_3step, label="3rd Order")
+# plot!(t, u_true, label="exp(t)")

@@ -8,8 +8,8 @@ function j_pp(d::Float64, zeta::Matrix{Float64}, psi::Matrix{Float64})
     M, P = size(zeta)
     j_pp = zeros(M, P)
 
-    for i in 2:M-1
-        for j in 2:P-1
+    for j in 2:P-1
+        for i in 2:M-1
             j_pp[i, j] = (
                 (zeta[i+1, j] - zeta[i-1, j])*(psi[i, j+1] - psi[i, j-1])
                 - (zeta[i, j+1] - zeta[i, j-1])*(psi[i+1, j] - psi[i-1, j]))
@@ -23,8 +23,8 @@ function j_pt(d::Float64, zeta::Matrix{Float64}, phi::Matrix{Float64})
     M, P = size(zeta)
     j_pt = zeros(M, P)
 
-    for i in 2:M-1
-        for j in 2:P-1
+    for j in 2:P-1
+        for i in 2:M-1
             j_pt[i, j] = (
                 zeta[i+1, j]*(phi[i+1, j+1] - phi[i+1, j-1])
                 - zeta[i-1, j]*(phi[i-1,j+1] - phi[i-1, j-1])
@@ -41,8 +41,8 @@ function j_tp(d::Float64, zeta::Matrix{Float64}, phi::Matrix{Float64})
     M, P = size(zeta)
     j_tp = zeros(M, P)
 
-    for i in 2:M-1
-        for j in 2:P-1
+    for j in 2:P-1
+        for i in 2:M-1
             j_tp[i, j] = (
                 zeta[i+1, j+1]*(phi[i, j+1] - phi[i+1, j])
                 - zeta[i-1, j-1]*(phi[i-1, j] - phi[i, j-1])

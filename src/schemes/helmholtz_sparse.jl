@@ -4,6 +4,7 @@ using IterativeSolvers
 using LinearSolve
 
 include("../toolbox.jl")
+include("BC.jl")
 
 struct RectangularDomain
     x1::Float64
@@ -12,22 +13,13 @@ struct RectangularDomain
     y2::Float64
 end
 
-"""Update the ghost cells of a matrix for periodic boundary conditions."""
-function update_ghost_cells(b::Matrix{Float64})
-    b[:,1] = b[:,end-1] # LHS ghost column.
-    b[:,end] = b[:,2] # RHS ghost column.
-    b[1,:] = b[end-1,:] # Top ghost row.
-    b[end,:] = b[2,:] # Bottom ghost row.
-    return b
-end
-
 # https://nbviewer.org/github/mitmath/18S096/blob/409bf1c1cbc8ed0f70afeb0f885ddc382f5138be/lectures/other/Nested-Dissection.ipynb
 """Rectangular domain M x P, dx varies."""
 function construct_spA(M::Int, P::Int, alpha::Float64, dx::Float64)
     D1 = spdiagm(M+1, M, -1 => -ones(M), 0 => ones(M))
     D2 = spdiagm(P+1, P, -1 => -ones(P), 0 => ones(P))
     A = kron(speye(P), D1' * D1) + kron(D2' * D2, speye(M)) - (alpha * (dx^2))*speye(M*P)
-    return A * 1 / (dx)^2
+    return A * (1 / (dx)^2)
 end
 
 """Solve the modified Helmholtz problem on a rectangular domain.
@@ -42,10 +34,11 @@ function sp_solve_modified_helmholtz(alpha::Float64, M::Int, P::Int, f::Function
     A = -construct_spA(M+2, P+2, alpha, dx)
     b = inflate(f, xs, ys)
 
-    # Apply periodic boundary conditions.
-    b = update_ghost_cells(b)
+    update_doubly_periodic_bc!(b)
 
     # TODO: Be explicit here on the method used to solve the system.
+    # TODO: Ensure LU factorisation is cached.
+    
     # Solve the system.
     prob = LinearProblem(A, vec(b))
     linsolve = init(prob)
@@ -58,12 +51,16 @@ function sp_solve_modified_helmholtz(alpha::Float64, M::Int, P::Int, f::Matrix{F
     A = -construct_spA(M+2, P+2, alpha, dx)
     
     # Ensure periodic boundary conditons are added.
-    b = update_ghost_cells(f)
+    update_doubly_periodic_bc!(f)
 
     # Solve the system.
-    prob = LinearProblem(A, vec(b))
+    prob = LinearProblem(A, vec(f))
     linsolve = init(prob)
     return solve(linsolve).u
+end
+
+function sp_solve_poisson(M::Int, P::Int, f::Matrix{Float64}, dx::Float64)
+    return sp_solve_modified_helmholtz(0.0, M, P, f, dx)
 end
 
 # A matrix B which is used as blocks inside the matrix A.
@@ -104,20 +101,6 @@ end
     
 #     # Use - here to ensure the matrix is semi pos def.
 #     A = -construct_spA(M-1, P-1, alpha)
-#     b = vec(inflate(f, xs, ys))
-
-#     # Solve the system.
-#     prob = LinearProblem(A, b)
-#     linsolve = init(prob)
-#     return A, b, solve(linsolve).u
-# end
-
-# function sp_solve_poisson(M::Int, P::Int, f::Function, dx::Float64, domain::RectangularDomain)
-#     xs = range(domain.x1 + dx, domain.x2 - dx, length=M-1)
-#     ys = range(domain.y1 + dx, domain.y2 - dx, length=P-1)
-    
-#     # Use -A here to ensure the matrix is semi pos def.
-#     A = -construct_spA(M-1, P-1, 0, dx)
 #     b = vec(inflate(f, xs, ys))
 
 #     # Solve the system.

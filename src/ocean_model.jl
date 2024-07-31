@@ -1,11 +1,11 @@
 using LinearAlgebra
 using Plots
 using JLD
+using LinearSolve
 
 include("schemes/arakawa.jl")
-include("schemes/helmholtz_sparse.jl")
+include("schemes/helmholtz.jl")
 
-"""Parameters for our ocean model."""
 struct BaroclinicModel
     H_1::Float64 # The height of the first layer in metres.
     H_2::Float64 # The height of the second layer in metres.
@@ -27,8 +27,7 @@ end
 
 """Outer constructor with default values."""
 BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d) = BaroclinicModel(
-    H_1, H_2, H_1+H_2, beta, Lx, Ly, RectangularDomain(0, Lx, 0, Ly), dt, T, U, M, P, dx, visc, r, R_d)
-
+    H_1, H_2, H_1+H_2, beta, Lx, Ly, RectangularDomain(0, Lx, 0, Ly), dt, T, U, M, P, dx, visc, r, R_d) 
 
 """
 Centred-difference scheme for matrices in the x-direction.
@@ -93,7 +92,7 @@ end
 
 """(f_0/N_0)^2"""
 function ratio_term(model::BaroclinicModel)
-    return ((model.H_1 + model.H_2) / (2*model.R_d^2)) * ((1/model.H_1) + (1/model.H_2))
+    return 0.5*(model.H_1 + model.H_2) / ((model.R_d^2) * ((1/model.H_1) + (1/model.H_2)))
 end
 
 S1_plus(model::BaroclinicModel) = (2 * ratio_term(model)) / (model.H_1 * (model.H_1 + model.H_2))
@@ -110,6 +109,7 @@ function eulers_method(dt::Float64, f::Function, zeta::Array{Float64, 4}, psi::A
     return zeta[:,:,z,1] + (dt * f1)
 end
 
+# Store f1 f2 f3.
 # TODO: Check this for correct coefs etc.
 function AB3(dt::Float64, f::Function, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, z::Int)
     f1 = f(zeta[:,:,z,1], psi[:,:,z,1])
@@ -154,17 +154,19 @@ function evolve_zeta_bottom(model::BaroclinicModel, zeta::Array{Float64, 4}, psi
     if timestep == 1 || timestep == 2    
         # Euler's methed for the first and second step.
         new_zeta = eulers_method(model.dt, f, zeta, psi, z)
+        update_doubly_periodic_bc!(new_zeta)
+        store_new_state!(zeta, new_zeta, z)
+        return zeta
     else
         # AB3 for subsequent steps. 
         new_zeta = AB3(model.dt, f, zeta, psi, z)
+        update_doubly_periodic_bc!(new_zeta)
+        store_new_state!(zeta, new_zeta, z)
+        return zeta
     end
-
-    update_doubly_periodic_bc!(new_zeta)
-    store_new_state!(zeta, new_zeta, z)
-    return zeta
 end
 
-function evolve_psi(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4})
+function evolve_psi(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, poisson_system, helmholtz_system)
     # Baroclinic projection to get zeta tilde and psi tilde.
     P_inv = P_inv_matrix(model.H_1, model.H_1)
     zeta_tilde = zeros(Float64, model.M+2, model.P+2, 2, 3)
@@ -177,17 +179,23 @@ function evolve_psi(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{
     
     # 1. Solve the Poisson problem for a.
     f_1 = zeta_tilde[:,:,1,1]
-    a = sp_solve_poisson(model.M, model.P, f_1, model.dx)
-    a_re = reshape(a, (model.M+2, model.P+2))
-    store_new_state!(psi_tilde, a_re, 1)
+    update_doubly_periodic_bc!(f_1)
+    
+    # Update the RHS in our cached linear system.
+    poisson_system.b = -vec(f_1)
+
+    new_psi_tilde_1 = reshape(solve(poisson_system).u, (model.M+2, model.P+2))
+    store_new_state!(psi_tilde, new_psi_tilde_1, 1)    
     
     # 2. Solve the modified Helmholtz problem for b
-    # lambda = -1 / (model.R_d^2) # Non zero eig, Tr(S).
-    lambda = S_eig(model)
     f_2 = zeta_tilde[:,:,2,1]
-    b = sp_solve_modified_helmholtz(lambda, model.M, model.P, f_2, model.dx)
-    b_re = reshape(b, (model.M+2, model.P+2))
-    store_new_state!(psi_tilde, b_re, 2)
+    update_doubly_periodic_bc!(f_2)
+    
+    helmholtz_system.b = -vec(f_2)
+    
+    new_psi_tilde_2 = reshape(solve(helmholtz_system, LinearSolve.CholeskyFactorization).u, (model.M+2, model.P+2)) 
+    
+    store_new_state!(psi_tilde, new_psi_tilde_2, 2)
 
     # Baroclinic projection to get back to zeta and psi.
     P = P_matrix(model.H_1, model.H_1)
@@ -202,6 +210,16 @@ function evolve_psi(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{
     return psi
 end
 
+"""Create linear problems for the Poisson and modified helmholtz problem
+so we can cache our LU factorisation."""
+function initialise_linear_systems(model::BaroclinicModel)
+    poisson_system = init_sp_poisson(model.M, model.P, model.dx)
+    lambda = S_eig(model)
+    helmholtz_system = init_sp_modified_helmholtz(lambda, model.M, model.P, model.dx)
+    return poisson_system, helmholtz_system
+end
+
+"""Initialise the model with a small random psi and then calculate zeta directly."""
 function initialise_model(model::BaroclinicModel)
     zeta = zeros(model.M+2, model.P+2, 2, 3)
     psi = zeros(model.M+2, model.P+2, 2, 3)
@@ -209,8 +227,14 @@ function initialise_model(model::BaroclinicModel)
     psi[:,:,1,1] = 10^-4 * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2))
     psi[:,:,2,1] = 10^-4 * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2)) 
 
+    update_doubly_periodic_bc!(psi[:,:,1,1])
+    update_doubly_periodic_bc!(psi[:,:,2,1])
+
     zeta[:,:,1,1] = laplace_5p(psi[:,:,1,1], model.dx) + (S1_plus(model)*(psi[:,:,2,1] - psi[:,:,1,1])) 
     zeta[:,:,2,1] = laplace_5p(psi[:,:,2,1], model.dx) + (S2_minus(model)*(psi[:,:,1,1] - psi[:,:,2,1]))
+
+    update_doubly_periodic_bc!(zeta[:,:,1,1])
+    update_doubly_periodic_bc!(zeta[:,:,2,1])
 
     return zeta, psi
 end

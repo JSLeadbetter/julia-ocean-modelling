@@ -22,4 +22,4 @@ println("Constructing B")
 
 println("Solving for u")
 @btime solve_modified_helmholtz(alpha, M, b_mp, domain)
-@btime sp_solve_modified_helmholtz(alpha, M, b_mp, domain)
+@btime sp_solve_modified_helmholtz(alpha, M, P, b_mp, domain)

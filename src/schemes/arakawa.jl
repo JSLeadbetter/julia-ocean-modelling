@@ -1,9 +1,8 @@
-# Implementing the Arakawa 1966 Jacobian finite differencing scheme.
+"""Implementing the Arakawa 1966 Jacobian finite differencing scheme."""
 
 using LinearAlgebra
 
-include("../toolbox.jl")
-include("BC.jl")
+include("boundary_conditions.jl")
 
 function j_pp(d::Float64, zeta::Matrix{Float64}, psi::Matrix{Float64})
     M, P = size(zeta)

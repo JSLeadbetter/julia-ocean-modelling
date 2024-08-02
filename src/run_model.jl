@@ -1,12 +1,15 @@
 using SparseArrays
 
-include("ocean_model.jl")
-include("schemes/helmholtz_sparse.jl")
-include("schemes/BC.jl")
+include("model.jl")
+include("schemes/helmholtz.jl")
+include("schemes/boundary_conditions.jl")
+
+const MINUTES = 60
+const DAY = 60*60*24
+const KM = 1000.0
+const YEAR = 60*60*24*365
 
 function create_metadata(model::BaroclinicModel)
-    DAY = 60*60*24
-    
     sample_interval = 1.0*DAY
     sample_timestep = floor(Int, sample_interval / model.dt)
 
@@ -20,18 +23,13 @@ function create_metadata(model::BaroclinicModel)
 end
 
 function main()
-    MINUTES = 60
-    DAY = 60*60*24
-    KM = 1000.0
-    YEAR = 60*60*24*365
-
     H_1 = 1.0*KM
     H_2 = 2.0*KM
     beta = 2*10^-11
     Lx = 4000.0*KM # 4000 km
     Ly = 2000.0*KM # 2000 km
     dt = 15.0*MINUTES # 30 minutes TODO: This needs to be reduced I think for convergence.
-    T = 1.0*YEAR  # Expect to wait 90 days before seeing things.
+    T = 0.5*YEAR  # Expect to wait 90 days before seeing things.
     U = 2.0 # Forcing term of top level.
     M = 256
     dx = Lx / M
@@ -60,43 +58,35 @@ function main()
     end 
 
     # charney stern
-
-    println("f_0:    ", ratio_term(model))
-    
-    
-    
-    println("S1:   ", S1_plus(model))
-    println("S2:   ", S2_minus(model))
-    # println(S1_plus(model) + S2_minus(model))
-
-    println("beta_1:   ", beta_1(model))
-
-    println("beta_2:    ", beta_2(model))
-
-    
-
-    println("M = $M, P = $P")
-    println("Timestep: $dt")
-    println("T: $T")
+    println("Parameters:")
+    println("(f_0^2 / N^2): ", ratio_term(model))
+    println("S1 = ", S1_plus(model))
+    println("S2 = ", S2_minus(model))
+    println("Beta_1 = ", beta_1(model))
+    println("Beta_2 = ", beta_2(model))
+    println("M = $M")
+    println("P = $P")
+    println("dt = $dt")
+    println("T = $T")
     
     total_steps = floor(Int, T / dt)
-    println("Total steps: $total_steps")
+    println("Total steps = $total_steps")
 
     sample_interval = 1.0*DAY
     sample_timestep = floor(Int, sample_interval / dt)
     
-    @time "Time to LU" poisson_system, helmholtz_system = initialise_linear_systems(model)
-
+    @time "Chol. Fact. Poisson" poisson_chol = get_poisson_chol_A(model.M, model.P, model.dx)
+    @time "Chol. Fact. modified Helmholtz" helmholtz_chol = get_helmholtz_chol_A(S_eig(model), model.M, model.P, model.dx)
+    
     println("Starting timeloop")
 
-    for (timestep, time) in enumerate(1:dt:T)
-        zeta = evolve_zeta_top(model, zeta, psi, timestep)
-        zeta = evolve_zeta_bottom(model, zeta, psi, timestep)
-        psi = evolve_psi(model, zeta, psi, poisson_system, helmholtz_system)
+    for (timestep, time) in enumerate(1:dt:T) 
+        evolve_zeta!(model, zeta, psi, timestep)
+        evolve_psi!(model, zeta, psi, poisson_chol, helmholtz_chol)
 
         if timestep % floor(total_steps / 25) == 0
-            t = timestep * time
-            println("Timestep: $timestep, time: $t, | ", zeta[10,10,1,1])
+            percent_complete = 100timestep / total_steps
+            println("Progress: $percent_complete %")
         end
 
         if timestep % sample_timestep == 0 && save_results

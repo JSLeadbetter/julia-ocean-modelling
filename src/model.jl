@@ -151,47 +151,48 @@ function evolve_zeta_layer!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi
     end
 end
 
-function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, poisson_chol, helmholtz_chol)
-    # Baroclinic projection to get zeta tilde and psi tilde.
+function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, poisson_system, helmholtz_system)
+    P = P_matrix(model.H_1, model.H_1)
     P_inv = P_inv_matrix(model.H_1, model.H_1)
     zeta_tilde = zeros(Float64, model.M+2, model.P+2, 2, 3)
     psi_tilde = zeros(Float64, model.M+2, model.P+2, 2, 3)
     
+    # Baroclinic projection to get zeta tilde and psi tilde.
     for i in 1:2
         zeta_tilde[:,:,i,1] = P_inv[i,1]*zeta[:,:,1,1] + P_inv[i,2]*zeta[:,:,2,1]
         psi_tilde[:,:,i,1] = P_inv[i,1]*psi[:,:,1,1] + P_inv[i,2]*psi[:,:,2,1]
     end
     
-    # 1. Solve the Poisson problem for a.
+    # Solve the Poisson problem for the top layer.
     f_1 = zeta_tilde[:,:,1,1]
     update_doubly_periodic_bc!(f_1)
-    b = -vec(f_1)
-
-    println("solving poisson")
-    new_psi_tilde_1 = reshape(poisson_chol \ b, (model.M+2, model.P+2)) 
     
-    # Update the RHS in our cached linear system.
-    # poisson_system.b = -vec(f_1)
+    b = -vec(copy(f_1[2:end-1, 2:end-1]))
+    b[1] = 0
+    poisson_system.b = b
+    u = solve(poisson_system).u
+    u_re = reshape(u, (model.M, model.P))
+    new_psi_tilde_1 = add_doubly_periodic_boundaries(u_re)
+    
     # new_psi_tilde_1 = reshape(solve(poisson_system).u, (model.M+2, model.P+2))
-    
     store_new_state!(psi_tilde, new_psi_tilde_1, 1)    
     
-    # 2. Solve the modified Helmholtz problem for b
+    # Solve the modified Helmholtz problem for the bottom layer.
     f_2 = zeta_tilde[:,:,2,1]
     update_doubly_periodic_bc!(f_2)
-    b = -vec(f_2)    
-    new_psi_tilde_2 = reshape(helmholtz_chol \ b, (model.M+2, model.P+2)) 
-
-    # helmholtz_system.b = -vec(f_2)
-    # new_psi_tilde_2 = reshape(solve(helmholtz_system).u, (model.M+2, model.P+2)) 
     
+    b = -vec(copy(f_2[2:end-1, 2:end-1]))
+    b[1] = 0
+    helmholtz_system.b = b
+    u = solve(helmholtz_system).u
+    u_re = reshape(u, (model.M, model.P))
+    new_psi_tilde_2 = add_doubly_periodic_boundaries(u_re)
+
+    # new_psi_tilde_2 = reshape(solve(helmholtz_system).u, (model.M+2, model.P+2)) 
     store_new_state!(psi_tilde, new_psi_tilde_2, 2)
 
     # Baroclinic projection to get back to zeta and psi.
-    P = P_matrix(model.H_1, model.H_1)
-    
     for i in 1:2
-        # zeta_tilde[:,:,i] = P[i,1]*zeta[:,:,1,1] + P_inv[i,2]*zeta[:,:,2,1]
         new_psi = P[i,1]*psi_tilde[:,:,1,1] + P[i,2]*psi_tilde[:,:,2,1]
         update_doubly_periodic_bc!(new_psi)
         store_new_state!(psi, new_psi, i)

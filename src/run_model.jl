@@ -42,7 +42,7 @@ function main()
 
     zeta, psi = initialise_model(model)
 
-    simulation_name = "test18"
+    simulation_name = "test19"
     file_name = "../data/$simulation_name.jld"
     save_results = true
 
@@ -74,18 +74,18 @@ function main()
 
     sample_interval = 1.0*DAY
     sample_timestep = floor(Int, sample_interval / dt)
-    
-    @time "Chol. Fact. Poisson" poisson_chol = get_poisson_chol_A(model.M, model.P, model.dx)
-    @time "Chol. Fact. modified Helmholtz" helmholtz_chol = get_helmholtz_chol_A(S_eig(model), model.M, model.P, model.dx)
+
+    @time "Chol. Fact. Poisson" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
+    @time "Chol. Fact. modified Helmholtz" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
     
     println("Starting timeloop")
 
     for (timestep, time) in enumerate(1:dt:T) 
         evolve_zeta!(model, zeta, psi, timestep)
-        evolve_psi!(model, zeta, psi, poisson_chol, helmholtz_chol)
+        evolve_psi!(model, zeta, psi, poisson_linsolve, helmholtz_linsolve)
 
         if timestep % floor(total_steps / 25) == 0
-            percent_complete = 100timestep / total_steps
+            percent_complete = round(100timestep / total_steps)
             println("Progress: $percent_complete %")
         end
 

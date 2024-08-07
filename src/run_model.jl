@@ -1,5 +1,3 @@
-using SparseArrays
-
 include("model.jl")
 include("schemes/helmholtz.jl")
 include("schemes/boundary_conditions.jl")
@@ -22,28 +20,8 @@ function create_metadata(model::BaroclinicModel)
     return metadata
 end
 
-function main()
-    H_1 = 1.0*KM
-    H_2 = 2.0*KM
-    beta = 2*10^-11
-    Lx = 4000.0*KM # 4000 km
-    Ly = 2000.0*KM # 2000 km
-    dt = 15.0*MINUTES # 30 minutes TODO: This needs to be reduced I think for convergence.
-    T = 0.5*YEAR  # Expect to wait 90 days before seeing things.
-    U = 2.0 # Forcing term of top level.
-    M = 256
-    dx = Lx / M
-    P = Int(Ly / dx)
-    visc = 100.0 # Viscosity, 100m^2s^-1
-    r = 10^-7 # bottom friction scaler.
-    R_d = 60.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
-    
-    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
-
+function run_model(model::BaroclinicModel, file_name::String)
     zeta, psi = initialise_model(model)
-
-    simulation_name = "test19"
-    file_name = "../data/$simulation_name.jld"
     save_results = true
 
     if save_results
@@ -71,13 +49,14 @@ function main()
     
     total_steps = floor(Int, T / dt)
     println("Total steps = $total_steps")
+    println("")
 
     sample_interval = 1.0*DAY
     sample_timestep = floor(Int, sample_interval / dt)
 
-    @time "Chol. Fact. Poisson" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
-    @time "Chol. Fact. modified Helmholtz" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
-    
+    @time "Time to init Poisson system" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
+    @time "Time to init modified Helmholtz system" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
+
     println("Starting timeloop")
 
     for (timestep, time) in enumerate(1:dt:T) 
@@ -96,6 +75,31 @@ function main()
             end
         end
     end
+
+    return zeta, psi
 end
 
-@time "Total runtime:" main()
+function main()
+    H_1 = 1.0*KM
+    H_2 = 2.0*KM
+    beta = 2*10^-11
+    Lx = 4000.0*KM # 4000 km
+    Ly = 2000.0*KM # 2000 km
+    dt = 15.0*MINUTES # 30 minutes TODO: This needs to be reduced I think for convergence.
+    T = 0.5*YEAR  # Expect to wait 90 days before seeing things.
+    U = 2.0 # Forcing term of top level.
+    M = 8
+    dx = Lx / M
+    P = Int(Ly / dx)
+    visc = 100.0 # Viscosity, 100m^2s^-1
+    r = 10^-7 # bottom friction scaler.
+    R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
+    
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
+
+    simulation_name = "test25"
+
+    run_model(model, simulation_name)
+end
+
+# @time "Total runtime:" main()

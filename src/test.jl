@@ -5,6 +5,71 @@ using CurveFit
 include("schemes/helmholtz.jl")
 include("model.jl")
 
+const MINUTES = 60
+const DAY = 60*60*24
+const KM = 1000.0
+const YEAR = 60*60*24*365
+
+@testset "Parameter Values" begin
+    H_1 = 1.0*KM
+    H_2 = 2.0*KM
+    beta = 2*10^-11
+    Lx = 4000.0*KM
+    Ly = 4000.0*KM
+    dt = 15.0*MINUTES
+    T = 0.5YEAR
+    U = 2.0
+    M = P = 128
+    dx = Lx / M
+    visc = 100.0
+    r = 10^-7
+    R_d = 40.0*KM
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
+
+    expected_ratio = 0.5 * (1000 + 2000) / (40000^2 * (1/1000 + 1/2000)) 
+    @test expected_ratio == ratio_term(model)
+    
+    expected_S1_plus = 2expected_ratio / (1000 * 3000)
+    @test expected_S1_plus == S1_plus(model)
+
+    expected_S2_minus = 2expected_ratio / (2000 * 3000)
+    @test expected_S2_minus == S2_minus(model)
+
+    expected_beta_1 = beta + expected_S1_plus * U
+    @test expected_beta_1 == beta_1(model)
+
+    expected_beta_2 = beta - expected_S2_minus * U
+    @test expected_beta_2 == beta_2(model)
+
+    expected_s_eig = -1 / R_d^2
+    @test S_eig(model) == expected_s_eig
+
+    @test (-S1_plus(model) - S2_minus(model)) == expected_s_eig
+end
+
+@testset "Explicit Laplacian Convergence" begin
+    f(x, y) = x^3 + y^2
+    xs = 1:10
+    ys = 1:10
+    u = Matrix{Float64}(inflate(f, xs, ys))
+    dx = 1.0
+
+    true_lap_f(x, y) = 6x + 2
+    true_lap = Matrix{Float64}(inflate(true_lap_f, xs, ys))
+    update_doubly_periodic_bc!(true_lap)
+
+    lap = laplace_5p(u, dx)
+
+    @test lap == true_lap
+
+    # display(u)
+    # display(lap)
+    # display(true_lap)
+
+    # @test false
+end
+
+
 @testset "Doubly Periodic Helmholtz Solve" begin
     inflate(f, xs, ys) = [f(x,y) for x in xs, y in ys]
     
@@ -89,13 +154,23 @@ end
 end
 
 @testset "P and P Inverse Correct" begin
-    KM = 1000.0
-
-    H_1 = 1000.0KM
-    H_2 = 1000.0KM
+    H_1 = 1.0*KM
+    H_2 = 2.0*KM
+    beta = 2*10^-11
+    Lx = 4000.0*KM
+    Ly = 4000.0*KM
+    dt = 15.0*MINUTES
+    T = 0.5YEAR
+    U = 2.0
+    M = P = 128
+    dx = Lx / M
+    visc = 100.0
+    r = 10^-7
+    R_d = 40.0*KM
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
     
     P = P_matrix(H_1, H_2)
-    P_inv = P_inv_matrix(H_1, H_2)
+    P_inv = P_inv_matrix(model)
 
     x = P * P_inv
     @test x == diagm(ones(2))

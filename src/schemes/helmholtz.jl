@@ -40,7 +40,7 @@ end
 """Matrix A in solving modified Helmholtz systems."""
 function construct_spA(M::Int, P::Int, dx::Float64, alpha::Float64)
     A = laplacian_2d_doubly_periodic(M, P)
-    A -= alpha * dx^2 * I(M*P)
+    A += alpha * dx^2 * I(M*P)
     return dx^-2 * A
 end
 

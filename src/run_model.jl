@@ -1,3 +1,5 @@
+using ProgressBars
+
 include("model.jl")
 include("schemes/helmholtz.jl")
 include("schemes/boundary_conditions.jl")
@@ -10,14 +12,34 @@ const YEAR = 60*60*24*365
 function create_metadata(model::BaroclinicModel)
     sample_interval = 1.0*DAY
     sample_timestep = floor(Int, sample_interval / model.dt)
+    total_steps = floor(Int, model.T / model.dt)
 
     metadata = Dict("dt" => model.dt,
         "T" => model.T,
         "sample_interval" => sample_interval,
-        "sample_timestep" => sample_timestep
+        "sample_timestep" => sample_timestep,
+        "total_steps" => total_steps,
     )
 
     return metadata
+end
+
+function log_model_params(model::BaroclinicModel)
+    total_steps = floor(Int, model.T / model.dt)
+    
+    println("Parameters:")
+    println("Lx = ", model.Lx)
+    println("Ly = ", model.Ly)
+    println("(f_0^2 / N^2): ", ratio_term(model))
+    println("S1 = ", S1_plus(model))
+    println("S2 = ", S2_minus(model))
+    println("Beta_1 = ", beta_1(model))
+    println("Beta_2 = ", beta_2(model))
+    println("M = ", model.M)
+    println("P = ", model.P)
+    println("dt = ", model.dt)
+    println("T = ", model.T)
+    println("Total steps = ", total_steps, "\n")
 end
 
 function run_model(model::BaroclinicModel, file_name::String)
@@ -36,37 +58,24 @@ function run_model(model::BaroclinicModel, file_name::String)
     end 
 
     # charney stern
-    println("Parameters:")
-    println("(f_0^2 / N^2): ", ratio_term(model))
-    println("S1 = ", S1_plus(model))
-    println("S2 = ", S2_minus(model))
-    println("Beta_1 = ", beta_1(model))
-    println("Beta_2 = ", beta_2(model))
-    println("M = $M")
-    println("P = $P")
-    println("dt = $dt")
-    println("T = $T")
-    
-    total_steps = floor(Int, T / dt)
-    println("Total steps = $total_steps")
-    println("")
+    log_model_params(model)
 
     sample_interval = 1.0*DAY
-    sample_timestep = floor(Int, sample_interval / dt)
+    sample_timestep = floor(Int, sample_interval / model.dt)
 
-    @time "Time to init Poisson system" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
-    @time "Time to init modified Helmholtz system" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
+    # @time "Time to init Poisson system" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
+    # @time "Time to init modified Helmholtz system" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
 
-    println("Starting timeloop")
+    @time "Time to Cholesky factorise Poisson system" poisson_chol_fact = get_poisson_cholesky(model.M, model.P, model.dx)
+    @time "Time to Cholesky factorise modified Helmholtz system" helmholtz_chol_fact = get_helmholtz_cholesky(model.M, model.P, model.dx, S_eig(model))
 
-    for (timestep, time) in enumerate(1:dt:T) 
+    total_steps = floor(Int, model.T / model.dt)
+
+    println("Running simulation... \n")
+
+    for timestep in ProgressBar(1:total_steps)
         evolve_zeta!(model, zeta, psi, timestep)
-        evolve_psi!(model, zeta, psi, poisson_linsolve, helmholtz_linsolve)
-
-        if timestep % floor(total_steps / 25) == 0
-            percent_complete = round(100timestep / total_steps)
-            println("Progress: $percent_complete %")
-        end
+        evolve_psi!(model, zeta, psi, poisson_chol_fact, helmholtz_chol_fact)
 
         if timestep % sample_timestep == 0 && save_results
             f = jldopen(file_name, "r+") do file
@@ -84,22 +93,26 @@ function main()
     H_2 = 2.0*KM
     beta = 2*10^-11
     Lx = 4000.0*KM # 4000 km
-    Ly = 2000.0*KM # 2000 km
-    dt = 15.0*MINUTES # 30 minutes TODO: This needs to be reduced I think for convergence.
-    T = 0.5*YEAR  # Expect to wait 90 days before seeing things.
-    U = 2.0 # Forcing term of top level.
-    M = 8
+    Ly = 4000.0*KM # 2000 km
+    dt = 30.0*MINUTES # 30 minutes
+    T = 0.05*YEAR  # Expect to wait 90 days before seeing things.
+    U = 0.06 # Forcing term of top level.
+    M = P = 128
     dx = Lx / M
-    P = Int(Ly / dx)
+    # P = Int(Ly / dx)
     visc = 100.0 # Viscosity, 100m^2s^-1
-    r = 10^-7 # bottom friction scaler.
+    r = 10^-8 # bottom friction scaler.
     R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
-    
-    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
+    initial_kick = 1e6
 
-    simulation_name = "test25"
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
-    run_model(model, simulation_name)
+    sim_name = "test_39"
+    data_file_name = "data/$sim_name.jld"
+
+    println("Saving simulation results to: ", data_file_name)
+
+    run_model(model, data_file_name)
 end
 
-# @time "Total runtime:" main()
+@time "\n Total runtime:" main()

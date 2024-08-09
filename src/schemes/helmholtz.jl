@@ -1,6 +1,7 @@
 using LinearAlgebra
 using SparseArrays
 using LinearSolve
+using SuiteSparse
 
 # Boundary conditions
 include("boundary_conditions.jl")
@@ -44,6 +45,22 @@ function construct_spA(M::Int, P::Int, dx::Float64, alpha::Float64)
     return dx^-2 * A
 end
 
+function get_helmholtz_cholesky(M::Int, P::Int, dx::Float64, alpha::Float64)
+    # Negative so matrix is positive semi-definite.
+    A = -construct_spA(M, P, dx, alpha)
+
+    # Ensure matrix is positive definite by reducing number of unknowns.
+    A[:,1] .= 0
+    A[1,:] .= 0
+    A[1, 1] = 1
+
+    return cholesky(A)
+end
+
+function get_poisson_cholesky(M::Int, P::Int, dx::Float64)
+    return get_helmholtz_cholesky(M, P, dx, 0.0)
+end
+
 """Initialise the Helmholtz problem."""
 function get_helmholtz_linsolve_A(M::Int, P::Int, dx::Float64, alpha::Float64)
     # Negative so matrix is positive semi-definite.
@@ -58,6 +75,20 @@ function get_helmholtz_linsolve_A(M::Int, P::Int, dx::Float64, alpha::Float64)
     b = vec(zeros(M,P)) 
     prob = LinearProblem(A, b)
     return init(prob)
+end
+
+function get_cholesky_factorisation(M::Int, P::Int, dx::Float64, alpha::Float64)
+    # Negative so matrix is positive semi-definite.
+    A = -construct_spA(M, P, dx, alpha)
+
+    # Ensure matrix is positive definite by reducing number of unknowns.
+    A[:,1] .= 0
+    A[1,:] .= 0
+    A[1, 1] = 1
+
+    @assert typeof(A) == SparseMatrixCSC
+    factorization = cholesky(A)#LinearSolve.factorize(A)
+    return factorization
 end
 
 """Initialise the Poisson problem."""

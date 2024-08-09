@@ -25,7 +25,8 @@ const YEAR = 60*60*24*365
     visc = 100.0
     r = 10^-7
     R_d = 40.0*KM
-    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
+    initial_kick = 1e-2
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
     expected_ratio = 0.5 * (1000 + 2000) / (40000^2 * (1/1000 + 1/2000)) 
     @test expected_ratio == ratio_term(model)
@@ -98,9 +99,6 @@ end
         true_J_matrix = inflate(true_J_func, xs, ys)
         test_J_matrix = J(dx, A, B)
 
-        # display(test_J_matrix[1:4, 1:4])
-        # display(true_J_matrix[1:4, 1:4])
-
         errors[i] = dx * norm(test_J_matrix - true_J_matrix)
     end
 
@@ -110,28 +108,6 @@ end
     println(M_list)
     println(errors)
     println("Log-log Slope = ", slope)
-end
-
-# @testset "A construction" begin
-#     M = P = 4
-#     dx = 1.0
-#     alpha = 1.0
-    
-#     A = construct_spA(M, P, dx, alpha)
-#     # @test false
-# end
-
-@testset "Laplacian 2D Doubly Periodic" begin
-    M = P = 4
-    dx = 1.0
-    alpha = 1.0
-    lap = laplacian_2d_doubly_periodic(M, P)
-    A = construct_spA(M, P, dx, alpha)
-
-    # display(Matrix(A))
-    # display(Matrix(lap))
-
-    # @test false
 end
 
 @testset "Doubly Periodic Poisson Solve" begin
@@ -193,7 +169,7 @@ end
     Lx = x_1 - x_0
     Ly = y_1 - y_0
 
-    alpha = 3.0
+    alpha = -3.0
     u(x, y) = sin(2pi * (x) / Lx) * cos(2pi * (y) / Ly)
     
     # Uxx + Uyy + 3u = f(x, y)
@@ -246,7 +222,8 @@ end
     visc = 100.0
     r = 10^-7
     R_d = 40.0*KM
-    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d)
+    initial_kick = 1e-2
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
     
     P = P_matrix(H_1, H_2)
     P_inv = P_inv_matrix(model)
@@ -301,30 +278,25 @@ end
         display(Matrix(A))
         println(eigvals(Matrix(A)))
 
-        # @test linsolve.A == A
+        @test typeof(A) == SparseMatrixCSC{Float64, Int64}
+        @test issymmetric(A)
+        @test isposdef(A)
+    end
+    @testset "10x5 Rectangle" begin
+        M = 10
+        P = 5
+        alpha = -1.0
+        dx = 1.0
+        A = -construct_spA(M, P, dx, alpha)
 
-        # display(Matrix(A))
+        A[:,1] .= 0
+        A[1,:] .= 0
+        A[1, 1] = 1
 
         @test typeof(A) == SparseMatrixCSC{Float64, Int64}
         @test issymmetric(A)
         @test isposdef(A)
-        # @test false
     end
-    # @testset "10x5 Rectangle" begin
-    #     M = 10
-    #     P = 5
-    #     alpha = 1.0
-    #     dx = 1.0
-    #     A = -construct_spA(M, P, dx, alpha)
-
-    #     A[:,1] .= 0
-    #     A[1,:] .= 0
-    #     A[1, 1] = 1
-
-    #     @test typeof(A) == SparseMatrixCSC{Float64, Int64}
-    #     @test issymmetric(A)
-    #     @test isposdef(A)
-    # end
 end
 
 @testset "Construct Linsolve Helmholtz" begin

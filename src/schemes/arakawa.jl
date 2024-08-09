@@ -8,8 +8,8 @@ function j_pp(zeta::Matrix{Float64}, psi::Matrix{Float64})
     M, P = size(zeta)
     j_pp = zeros(M, P)
 
-    for j in 2:P-1
-        for i in 2:M-1
+    @inbounds for j in 2:P-1
+        @inbounds for i in 2:M-1
             j_pp[i, j] = (
                 (zeta[i+1, j] - zeta[i-1, j])*(psi[i, j+1] - psi[i, j-1])
                 - (zeta[i, j+1] - zeta[i, j-1])*(psi[i+1, j] - psi[i-1, j]))
@@ -23,8 +23,8 @@ function j_pt(zeta::Matrix{Float64}, psi::Matrix{Float64})
     M, P = size(zeta)
     j_pt = zeros(M, P)
 
-    for j in 2:P-1
-        for i in 2:M-1
+    @inbounds for j in 2:P-1
+        @inbounds for i in 2:M-1
             j_pt[i, j] = (
                 zeta[i+1, j]*(psi[i+1, j+1] - psi[i+1, j-1])
                 - zeta[i-1, j]*(psi[i-1,j+1] - psi[i-1, j-1])
@@ -41,8 +41,8 @@ function j_tp(zeta::Matrix{Float64}, psi::Matrix{Float64})
     M, P = size(zeta)
     j_tp = zeros(M, P)
 
-    for j in 2:P-1
-        for i in 2:M-1
+    @inbounds for j in 2:P-1
+        @inbounds for i in 2:M-1
             j_tp[i, j] = (
                 zeta[i+1, j+1]*(psi[i, j+1] - psi[i+1, j])
                 - zeta[i-1, j-1]*(psi[i-1, j] - psi[i, j-1])
@@ -56,9 +56,6 @@ function j_tp(zeta::Matrix{Float64}, psi::Matrix{Float64})
 end
 
 function J(dx::Float64, zeta::Matrix{Float64}, psi::Matrix{Float64})
-    # update_doubly_periodic_bc!(zeta)
-    # update_doubly_periodic_bc!(psi)
-    
     j = (j_pp(zeta, psi) + j_pt(zeta, psi) + j_tp(zeta, psi)) / (3 * 4 * dx^2)
     update_doubly_periodic_bc!(j)
     return j

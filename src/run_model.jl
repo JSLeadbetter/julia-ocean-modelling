@@ -14,7 +14,8 @@ function create_metadata(model::BaroclinicModel)
     sample_timestep = floor(Int, sample_interval / model.dt)
     total_steps = floor(Int, model.T / model.dt)
 
-    metadata = Dict("dt" => model.dt,
+    metadata = Dict(
+        "dt" => model.dt,
         "T" => model.T,
         "sample_interval" => sample_interval,
         "sample_timestep" => sample_timestep,
@@ -39,6 +40,8 @@ function log_model_params(model::BaroclinicModel)
     println("P = ", model.P)
     println("dt = ", model.dt)
     println("T = ", model.T)
+    println("U = ", model.U)
+    println("Initial kick = ", model.initial_kick)
     println("Total steps = ", total_steps, "\n")
 end
 
@@ -61,7 +64,7 @@ function run_model(model::BaroclinicModel, file_name::String)
     log_model_params(model)
 
     sample_interval = 1.0*DAY
-    sample_timestep = floor(Int, sample_interval / model.dt)
+    sample_timestep = 2*floor(Int, sample_interval / model.dt)
 
     # @time "Time to init Poisson system" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
     # @time "Time to init modified Helmholtz system" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
@@ -73,6 +76,7 @@ function run_model(model::BaroclinicModel, file_name::String)
 
     println("Running simulation... \n")
 
+    # for timestep in 1:total_steps
     for timestep in ProgressBar(1:total_steps)
         evolve_zeta!(model, zeta, psi, timestep)
         evolve_psi!(model, zeta, psi, poisson_chol_fact, helmholtz_chol_fact)
@@ -95,19 +99,19 @@ function main()
     Lx = 4000.0*KM # 4000 km
     Ly = 4000.0*KM # 2000 km
     dt = 30.0*MINUTES # 30 minutes
-    T = 0.05*YEAR  # Expect to wait 90 days before seeing things.
-    U = 0.06 # Forcing term of top level.
+    T = 10.0YEAR  # Expect to wait 90 days before seeing things.
+    U = 0.1 # Forcing term of top level.
     M = P = 128
     dx = Lx / M
     # P = Int(Ly / dx)
     visc = 100.0 # Viscosity, 100m^2s^-1
     r = 10^-8 # bottom friction scaler.
-    R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
-    initial_kick = 1e6
+    R_d = 40.0*KM # Deformation radius, ~40km. Using 60km for better numerics.
+    initial_kick = 1e-6
 
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
-    sim_name = "test_39"
+    sim_name = "test_42"
     data_file_name = "data/$sim_name.jld"
 
     println("Saving simulation results to: ", data_file_name)

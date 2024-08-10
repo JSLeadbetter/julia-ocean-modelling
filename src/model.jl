@@ -115,43 +115,57 @@ function AB3(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::
     f1 = f(model, zeta[:,:,z,1], psi[:,:,z,1])
     f2 = f(model, zeta[:,:,z,2], psi[:,:,z,2])
     f3 = f(model, zeta[:,:,z,3], psi[:,:,z,3])
-    return zeta[:,:,z,1] + (model.dt .* ((23/12).*f1 - (16/12).*f2 + (5/12).*f3)) 
+    
+    update = (model.dt .* ((23/12).*f1 - (16/12).*f2 + (5/12).*f3))
+    
+    return zeta[:,:,z,1] .+ update
 end
 
 """RHS function used for evolving the top zeta layer."""
 function zeta_f1(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Float64})
-    return model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx)
-    - J(model.dx, zeta, psi)
-    - beta_1(model)*cd(psi, model.dx)
-    - model.U*cd(zeta, model.dx)
-end
-
-function zeta_f2(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Float64})
-    return model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx) # Apply ghost cells between laplacian applications.
-    - J(model.dx, zeta, psi)
-    - beta_2(model)*cd(psi, model.dx)
-    - model.r*laplace_5p(psi, model.dx) # Bottom friction
-end
-
-function evolve_zeta!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int)
-    # f_1(zeta::Matrix{Float64}, psi::Matrix{Float64}) = begin
+    v_term = model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx)
+    J_term = J(model.dx, zeta, psi)
+    beta_term = beta_1(model)*cd(psi, model.dx)
+    U_term = model.U*cd(zeta, model.dx)
+    
+    # println("Zeta Layer 1")
+    # println(v_term[10,10])
+    # println(J_term[10,10])
+    # println(beta_term[10,10])
+    # println(U_term[10,10], "\n")
+    
+    return v_term - J_term - beta_term - U_term 
+    # return begin
     #     model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx)
     #     - J(model.dx, zeta, psi)
     #     - beta_1(model)*cd(psi, model.dx)
     #     - model.U*cd(zeta, model.dx)
     # end
-    
-    # f_2(zeta::Matrix{Float64}, psi::Matrix{Float64}) = begin
+end
+
+function zeta_f2(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Float64})
+    v_term = model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx)
+    J_term = J(model.dx, zeta, psi)
+    beta_term = beta_2(model)*cd(psi, model.dx)
+    r_term = model.r*laplace_5p(psi, model.dx)
+
+    # println("Zeta Layer 2")
+    # println(v_term[10,10])
+    # println(J_term[10,10])
+    # println(beta_term[10,10])
+    # println(r_term[10,10], "\n")
+
+    return v_term - J_term - beta_term - r_term
+
+    # return begin
     #     model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx) # Apply ghost cells between laplacian applications.
     #     - J(model.dx, zeta, psi)
-    #     - beta_2(model)*cd(psi, model.dx)
+    #     - beta_2(model)*cd(psi, model.dx) 
     #     - model.r*laplace_5p(psi, model.dx) # Bottom friction
     # end
+end
 
-    # println("")
-    # println("J   ", J(model.dx, zeta[:,:,1,1], psi[:,:,1,1])[1:5, 1:5])
-    # println("U  ", model.U*cd(zeta[:,:,1,1], model.dx))
-
+function evolve_zeta!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int)
     evolve_zeta_layer!(model, zeta, psi, timestep, 1, zeta_f1)
     evolve_zeta_layer!(model, zeta, psi, timestep, 2, zeta_f2)
 end
@@ -164,7 +178,10 @@ function evolve_zeta_layer!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi
         store_new_state!(zeta, new_zeta, layer)
     else
         # AB3 for subsequent steps. 
+        
+        # println("old zeta: ", zeta[10,10,layer,1])
         new_zeta = AB3(model, f, zeta, psi, layer)
+        # println("new zeta: ", new_zeta[10,10])
         update_doubly_periodic_bc!(new_zeta)
         store_new_state!(zeta, new_zeta, layer)
     end
@@ -191,47 +208,6 @@ function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array
     b = -vec(copy(zeta_tilde[2:end-1,2:end-1,2,1])); b[1] = 0
     u = reshape(helmholtz_cholesky \ b, (model.M, model.P)) 
     new_psi_tilde_2 = add_doubly_periodic_boundaries(u) 
-
-    # Baroclinic projection to get back to zeta and psi.
-    for i in 1:2
-        new_psi = P[i,1]*new_psi_tilde_1 + P[i,2]*new_psi_tilde_2
-        update_doubly_periodic_bc!(new_psi)
-        store_new_state!(psi, new_psi, i)
-    end
-end
-
-
-function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, poisson_system::LinearProblem, helmholtz_system::LinearProblem)
-    P = P_matrix(model.H_1, model.H_1)
-    P_inv = P_inv_matrix(model)
-    zeta_tilde = zeros(Float64, model.M+2, model.P+2, 2, 3)
-    psi_tilde = zeros(Float64, model.M+2, model.P+2, 2, 3)
-
-    # Baroclinic projection to get zeta tilde and psi tilde.
-    for i in 1:2
-        zeta_tilde[:,:,i,1] = P_inv[i,1]*zeta[:,:,1,1] + P_inv[i,2]*zeta[:,:,2,1]
-        psi_tilde[:,:,i,1] = P_inv[i,1]*psi[:,:,1,1] + P_inv[i,2]*psi[:,:,2,1]
-    end
-
-    # Solve the Poisson problem for the top layer.
-    f_1 = copy(zeta_tilde[:,:,1,1])
-    # update_doubly_periodic_bc!(f_1)
-    b = -vec(f_1[2:end-1, 2:end-1])
-    b[1] = 0
-    poisson_system.b = b
-    u = solve(poisson_system).u
-    u_re = reshape(u, (model.M, model.P))
-    new_psi_tilde_1 = add_doubly_periodic_boundaries(u_re)
-    
-    # Solve the modified Helmholtz problem for the bottom layer.
-    f_2 = copy(zeta_tilde[:,:,2,1])
-    # update_doubly_periodic_bc!(f_2)
-    b = -vec(f_2[2:end-1, 2:end-1])
-    b[1] = 0
-    helmholtz_system.b = b
-    u = solve(helmholtz_system).u
-    u_re = reshape(u, (model.M, model.P))
-    new_psi_tilde_2 = add_doubly_periodic_boundaries(u_re)
 
     # Baroclinic projection to get back to zeta and psi.
     for i in 1:2

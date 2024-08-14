@@ -5,13 +5,13 @@ const DAY = 60*60*24
 
 function load_matrix(timestep::Int, file_name::String, var::String)
     data_name = var * "_$timestep"
-    c = jldopen(file_name, "r") do file
+    jldopen(file_name, "r") do file
         return read(file, data_name)
     end
 end
 
 function get_metadata(file_name::String)
-    c = jldopen(file_name, "r") do file
+    jldopen(file_name, "r") do file
         return read(file, "metadata")
     end
 end
@@ -68,10 +68,6 @@ function create_mp4(data_file_name::String, animation_file_name::String, fps::In
     Colorbar(ga[1, 4], hm3)
     Colorbar(ga[2, 4], hm4)
 
-    # display(fig)
-
-    sleep_time = 1 / fps
-
     record(fig, animation_file_name, 0:sample_timestep:total_steps, framerate = fps) do timestep
         zeta = load_matrix(Int(timestep), data_file_name, "zeta")
         psi = load_matrix(Int(timestep), data_file_name, "psi")
@@ -89,16 +85,12 @@ function create_mp4(data_file_name::String, animation_file_name::String, fps::In
         psi_bottom_plot[] = psi_bottom_shifted
 
         plot_time[] = timestep * dt / DAY
-
-        # display(fig)
-        # sleep(sleep_time)
     end
-
-    # Will keep the plot open until it is closed, otherwise it will close at the end of the animation.
-    # wait(display(fig))
 end
 
 function show_animation(file_name::String, fps::Int)
+    shift_amounts = (0,0)
+    
     metadata = get_metadata(file_name)
     println(metadata)
 

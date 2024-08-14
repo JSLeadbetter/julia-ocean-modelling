@@ -60,14 +60,10 @@ function run_model(model::BaroclinicModel, file_name::String)
         end
     end 
 
-    # charney stern
     log_model_params(model)
 
     sample_interval = 1.0*DAY
     sample_timestep = 2*floor(Int, sample_interval / model.dt)
-
-    # @time "Time to init Poisson system" poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
-    # @time "Time to init modified Helmholtz system" helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
 
     @time "Time to Cholesky factorise Poisson system" poisson_chol_fact = get_poisson_cholesky(model.M, model.P, model.dx)
     @time "Time to Cholesky factorise modified Helmholtz system" helmholtz_chol_fact = get_helmholtz_cholesky(model.M, model.P, model.dx, S_eig(model))
@@ -93,15 +89,15 @@ function run_model(model::BaroclinicModel, file_name::String)
 end
 
 function main()
-    H_1 = 1.0*KM
+    H_1 = 0.5*KM
     H_2 = 2.0*KM
     beta = 2*10^-11
     Lx = 4000.0*KM # 4000 km
     Ly = 4000.0*KM # 2000 km
-    dt = 30.0*MINUTES # 30 minutes
+    dt = 15.0*MINUTES # 30 minutes
     T = 10.0YEAR  # Expect to wait 90 days before seeing things.
     U = 0.1 # Forcing term of top level.
-    M = P = 128
+    M = P = 256
     dx = Lx / M
     # P = Int(Ly / dx)
     visc = 100.0 # Viscosity, 100m^2s^-1
@@ -111,7 +107,7 @@ function main()
 
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
-    sim_name = "test_42"
+    sim_name = "thinner_upper"
     data_file_name = "data/$sim_name.jld"
 
     println("Saving simulation results to: ", data_file_name)

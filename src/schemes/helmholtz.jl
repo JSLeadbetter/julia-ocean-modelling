@@ -61,41 +61,6 @@ function get_poisson_cholesky(M::Int, P::Int, dx::Float64)
     return get_helmholtz_cholesky(M, P, dx, 0.0)
 end
 
-"""Initialise the Helmholtz problem."""
-function get_helmholtz_linsolve_A(M::Int, P::Int, dx::Float64, alpha::Float64)
-    # Negative so matrix is positive semi-definite.
-    A = -construct_spA(M, P, dx, alpha)
-
-    # Ensure matrix is positive definite by reducing number of unknowns.
-    A[:,1] .= 0
-    A[1,:] .= 0
-    A[1, 1] = 1
-
-    # Start with zeros so we can initialise the linear problem, could be any vector.
-    b = vec(zeros(M,P)) 
-    prob = LinearProblem(A, b)
-    return init(prob)
-end
-
-function get_cholesky_factorisation(M::Int, P::Int, dx::Float64, alpha::Float64)
-    # Negative so matrix is positive semi-definite.
-    A = -construct_spA(M, P, dx, alpha)
-
-    # Ensure matrix is positive definite by reducing number of unknowns.
-    A[:,1] .= 0
-    A[1,:] .= 0
-    A[1, 1] = 1
-
-    @assert typeof(A) == SparseMatrixCSC
-    factorization = cholesky(A)#LinearSolve.factorize(A)
-    return factorization
-end
-
-"""Initialise the Poisson problem."""
-function get_poisson_linsolve_A(M::Int, P::Int, dx::Float64)
-    return get_helmholtz_linsolve_A(M, P, dx, 0.0)
-end
-
 """Extend a matrix by two rows and columns and copies rows/cols to add double periodicity."""
 function add_doubly_periodic_boundaries(u::Matrix{Float64})
     M, P = size(u)
@@ -107,7 +72,7 @@ end
 
 """Doubly periodic boundary conditions. Does not cache A factorisation so should only be used in single use cases."""
 function sp_solve_modified_helmholtz(M::Int, P::Int, dx::Float64, f::Matrix{Float64}, alpha::Float64)
-    linsolve = get_helmholtz_linsolve_A(M, P, dx, alpha)
+    chol_A = get_helmholtz_cholesky(M, P, dx, alpha)
 
     # Select the inner square of the domain to perform the solve on.
     b = -vec(copy(f[2:end-1, 2:end-1]))
@@ -115,8 +80,8 @@ function sp_solve_modified_helmholtz(M::Int, P::Int, dx::Float64, f::Matrix{Floa
     # Reduce the number of unknowns to ensure system is positive definite.
     b[1] = 0
 
-    linsolve.b = b
-    u = reshape(solve(linsolve).u, (M, P))
+    u = reshape(chol_A \ b, (M, P))
+    # u = reshape(solve(linsolve).u, (M, P))
     return add_doubly_periodic_boundaries(u)
 end
 

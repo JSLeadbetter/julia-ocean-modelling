@@ -1,6 +1,7 @@
 using Test
 using LinearAlgebra
 using CurveFit
+using Plots
 
 include("schemes/helmholtz.jl")
 include("schemes/arakawa.jl")
@@ -144,10 +145,6 @@ end
         errors[i] = dx * norm(u_num - u_true)
     end
 
-    # Uncomment for plotting.
-    # p = plot(xs, ys, [u_num, u_true], st=:surface, layout=(1, 2), size=(1000, 400))
-    # gui(p)
-
     # Calculate the slope of log-log values to check for second order convergence.
     fit = linear_fit(log.(M_list), log.(errors))
     slope = fit[2]
@@ -192,10 +189,6 @@ end
         # Weighted 2-norm.
         errors[i] = dx * norm(u_num - u_true)
     end
-
-    # Uncomment for plotting.
-    # p = plot(xs, ys, [u_num, u_true], st=:surface, layout=(1, 2), size=(1000, 400))
-    # gui(p)
 
     # Calculate the slope of log-log values to check for second order convergence.
     fit = linear_fit(log.(M_list), log.(errors))
@@ -264,19 +257,11 @@ end
         M = P = 4
         alpha = -3.0
         dx = 0.5
-        
-        linsolve = get_helmholtz_linsolve_A(M, P, dx, alpha)
-
         A = -construct_spA(M, P, dx, alpha)
-
-        println(eigvals(Matrix(A)))
 
         A[:,1] .= 0
         A[1,:] .= 0
         A[1, 1] = 1
-
-        display(Matrix(A))
-        println(eigvals(Matrix(A)))
 
         @test typeof(A) == SparseMatrixCSC{Float64, Int64}
         @test issymmetric(A)
@@ -298,21 +283,3 @@ end
         @test isposdef(A)
     end
 end
-
-@testset "Construct Linsolve Helmholtz" begin
-    @testset "4 x 4 square" begin
-        M = 4
-        P = 4
-        dx = 1.0
-        alpha = 3.0
-        A = get_helmholtz_linsolve_A(M, P, dx, alpha)
-    end
-    @testset "8 x 4 rectangle" begin
-        M = 8
-        P = 4
-        dx = 1.0
-        alpha = 3.0
-        A = get_helmholtz_linsolve_A(M, P, dx, alpha)
-    end
-end
-

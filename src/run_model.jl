@@ -23,7 +23,6 @@ end
 
 function log_model_params(model::BaroclinicModel)
     total_steps = floor(Int, model.T / model.dt)
-    
     println("Parameters:")
     println("Lx = ", model.Lx)
     println("Ly = ", model.Ly)

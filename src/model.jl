@@ -51,22 +51,6 @@ function cd(u::Matrix{Float64}, dx::Float64)
     return u_out
 end
 
-# https://discourse.julialang.org/t/finite-difference-laplacian-with-five-point-stencil/25014
-"""Five-point Laplacian scheme. Doubly periodic boundary conditions."""
-function laplace_5p(u::Matrix{Float64}, dx::Float64)
-    M, P = size(u)
-    lap = zeros(M, P)
-
-    @inbounds for j in 2:P-1
-        @inbounds for i in 2:M-1
-            lap[i, j] = (u[i-1, j] + u[i+1, j] - 4u[i, j] + u[i, j-1] + u[i, j+1]) * dx^-2
-        end
-    end
-
-    update_doubly_periodic_bc!(lap)
-    return lap
-end
-
 "The matrix of eigenvectors of the S matrix."
 function P_matrix(H_1::Float64, H_2::Float64)
     P = ones(Float64, 2, 2)

@@ -1,13 +1,11 @@
-import numpy as np
 import pyqg
 from time import perf_counter
 
 YEAR = 24*60*60*360.0
 MINUTE = 60
 
-dt = 15.0*MINUTE
-M = 128
-T = 1*YEAR
+dt = 30.0*MINUTE
+T = 0.25*YEAR
 
 M_list = [16, 32, 64, 128]
 

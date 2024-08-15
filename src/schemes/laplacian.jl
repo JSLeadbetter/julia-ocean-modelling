@@ -13,6 +13,23 @@ struct RectangularDomain
     y2::Float64
 end
 
+# https://discourse.julialang.org/t/finite-difference-laplacian-with-five-point-stencil/25014
+"""Matrix-free five-point Laplacian scheme with doubly periodic boundary conditions."""
+function laplace_5p(u::Matrix{Float64}, dx::Float64)
+    M, P = size(u)
+    lap = zeros(M, P)
+
+    @inbounds for j in 2:P-1
+        @inbounds for i in 2:M-1
+            lap[i, j] = (u[i-1, j] + u[i+1, j] - 4u[i, j] + u[i, j-1] + u[i, j+1]) * dx^-2
+        end
+    end
+
+    update_doubly_periodic_bc!(lap)
+    return lap
+end
+
+
 function laplacian_1d(N::Int)
     return spdiagm(-1 => ones(N-1), 0 => -2ones(N), 1 => ones(N-1))
 end

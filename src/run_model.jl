@@ -45,9 +45,8 @@ function log_model_params(model::BaroclinicModel)
     println("Total steps = ", total_steps, "\n")
 end
 
-function run_model(model::BaroclinicModel, file_name::String)
+function run_model(model::BaroclinicModel, file_name::String, save_results::Bool)
     zeta, psi = initialise_model(model)
-    save_results = true
 
     if save_results
         metadata = create_metadata(model)
@@ -112,7 +111,7 @@ function main()
 
     println("Saving simulation results to: ", data_file_name)
 
-    run_model(model, data_file_name)
+    run_model(model, data_file_name, true)
 end
 
-@time "\n Total runtime:" main()
+# @time "\n Total runtime:" main()

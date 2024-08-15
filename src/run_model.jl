@@ -62,11 +62,13 @@ function run_model(model::BaroclinicModel, file_name::String, save_results::Bool
 
     total_steps = floor(Int, model.T / model.dt)
 
+    f_store = zeros(model.M+2, model.P+2, 2, 3)
+
     println("Running simulation... \n")
 
     # for timestep in 1:total_steps
     for timestep in ProgressBar(1:total_steps)
-        evolve_zeta!(model, zeta, psi, timestep)
+        evolve_zeta!(model, zeta, psi, timestep, f_store)
         evolve_psi!(model, zeta, psi, poisson_chol_fact, helmholtz_chol_fact)
 
         if timestep % sample_timestep == 0 && save_results

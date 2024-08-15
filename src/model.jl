@@ -33,6 +33,29 @@ end
 BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick) = BaroclinicModel(
     H_1, H_2, H_1+H_2, beta, Lx, Ly, RectangularDomain(0, Lx, 0, Ly), dt, T, U, M, P, dx, visc, r, R_d, initial_kick) 
 
+"""Initialise the model with a small random psi and then calculate zeta directly."""
+function initialise_model(model::BaroclinicModel)
+    # Initialise psi with random scaled noise.
+    psi_1 = model.initial_kick * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2))
+    psi_2 = model.initial_kick * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2)) 
+
+    update_doubly_periodic_bc!(psi_1)
+    update_doubly_periodic_bc!(psi_2)    
+
+    zeta_1 = laplace_5p(psi_1, model.dx) + S1_plus(model) * (psi_2 - psi_1)
+    zeta_2 = laplace_5p(psi_2, model.dx) + S2_minus(model) * (psi_1 - psi_2)
+
+    zeta = zeros(model.M+2, model.P+2, 2, 3)
+    psi = zeros(model.M+2, model.P+2, 2, 3)
+
+    psi[:,:,1,1] = copy(psi_1)
+    psi[:,:,2,1] = copy(psi_2)
+    zeta[:,:,1,1] = copy(zeta_1)
+    zeta[:,:,2,1] = copy(zeta_2)
+    
+    return zeta, psi
+end
+
 """
 Centred-difference scheme for matrices in the x-direction.
 Doubly periodic boundary conditions.
@@ -92,17 +115,23 @@ beta_2(model::BaroclinicModel) = model.beta - (S2_minus(model) * model.U)
 # Non-zero eigenvalue of the S matrix.
 S_eig(model::BaroclinicModel) = -1 / model.R_d^2
 
-function eulers_method(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, z::Int)
+function eulers_method(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, z::Int, f_store::Array{Float64, 4})
     f1 = f(model, zeta[:,:,z,1], psi[:,:,z,1])
+    store_new_state!(f_store, f1, z)
     return zeta[:,:,z,1] + (model.dt .* f1)
 end
 
 # TODO: Store f1 f2 f3.
-function AB3(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, z::Int)
+function AB3(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, z::Int, f_store::Array{Float64, 4})
     f1 = f(model, zeta[:,:,z,1], psi[:,:,z,1])
-    f2 = f(model, zeta[:,:,z,2], psi[:,:,z,2])
-    f3 = f(model, zeta[:,:,z,3], psi[:,:,z,3])
-    update = (model.dt .* ((23/12).*f1 - (16/12).*f2 + (5/12).*f3))
+    store_new_state!(f_store, f1, z) 
+    
+    f2 = f_store[:,:,z,2]
+    f3 = f_store[:,:,z,3]
+    
+    # f2 = f(model, zeta[:,:,z,2], psi[:,:,z,2])
+    # f3 = f(model, zeta[:,:,z,3], psi[:,:,z,3])
+    update = (model.dt .* ((23/12).*f1 - (16/12).*f2 + (5/12).*f3))    
     return zeta[:,:,z,1] .+ update
 end
 
@@ -123,20 +152,20 @@ function zeta_f2(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Floa
     return v_term - J_term - beta_term - r_term
 end
 
-function evolve_zeta!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int)
-    evolve_zeta_layer!(model, zeta, psi, timestep, 1, zeta_f1)
-    evolve_zeta_layer!(model, zeta, psi, timestep, 2, zeta_f2)
+function evolve_zeta!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int, f_store::Array{Float64, 4})
+    evolve_zeta_layer!(model, zeta, psi, timestep, 1, zeta_f1, f_store)
+    evolve_zeta_layer!(model, zeta, psi, timestep, 2, zeta_f2, f_store)
 end
 
-function evolve_zeta_layer!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int, layer::Int, f::Function)
+function evolve_zeta_layer!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int, layer::Int, f::Function, f_store::Array{Float64, 4})
     if timestep == 1 || timestep == 2    
         # Euler's methed for the first and second step.
-        new_zeta = eulers_method(model, f, zeta, psi, layer)
+        new_zeta = eulers_method(model, f, zeta, psi, layer, f_store)
         update_doubly_periodic_bc!(new_zeta)
         store_new_state!(zeta, new_zeta, layer)
     else
         # AB3 for subsequent steps. 
-        new_zeta = AB3(model, f, zeta, psi, layer)
+        new_zeta = AB3(model, f, zeta, psi, layer, f_store)
         update_doubly_periodic_bc!(new_zeta)
         store_new_state!(zeta, new_zeta, layer)
     end
@@ -170,27 +199,4 @@ function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array
         update_doubly_periodic_bc!(new_psi)
         store_new_state!(psi, new_psi, i)
     end
-end
-
-"""Initialise the model with a small random psi and then calculate zeta directly."""
-function initialise_model(model::BaroclinicModel)
-    # Initialise psi with random scaled noise.
-    psi_1 = model.initial_kick * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2))
-    psi_2 = model.initial_kick * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2)) 
-
-    update_doubly_periodic_bc!(psi_1)
-    update_doubly_periodic_bc!(psi_2)    
-
-    zeta_1 = laplace_5p(psi_1, model.dx) + S1_plus(model) * (psi_2 - psi_1)
-    zeta_2 = laplace_5p(psi_2, model.dx) + S2_minus(model) * (psi_1 - psi_2)
-
-    zeta = zeros(model.M+2, model.P+2, 2, 3)
-    psi = zeros(model.M+2, model.P+2, 2, 3)
-
-    psi[:,:,1,1] = copy(psi_1)
-    psi[:,:,2,1] = copy(psi_2)
-    zeta[:,:,1,1] = copy(zeta_1)
-    zeta[:,:,2,1] = copy(zeta_2)
-    
-    return zeta, psi
 end

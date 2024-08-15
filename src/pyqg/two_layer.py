@@ -1,9 +1,5 @@
 import numpy as np
-from matplotlib import pyplot as plt
-
 import pyqg
-from pyqg import diagnostic_tools as tools
-
 from time import perf_counter
 
 YEAR = 24*60*60*360.0
@@ -13,18 +9,21 @@ dt = 15.0*MINUTE
 M = 128
 T = 1*YEAR
 
-m = pyqg.QGModel(
-    tmax=T,
-    twrite=10000,
-    tavestart=5*YEAR,
-    nx=M,
-    dt=dt,
-    log_level=2
-)
+M_list = [16, 32, 64, 128]
 
-t_start = perf_counter()
-m.run()
-t_end = perf_counter()
-t_elapsed = t_end - t_start
+for M in M_list:
+    m = pyqg.QGModel(
+        tmax=T,
+        twrite=10000,
+        tavestart=5*YEAR,
+        nx=M,
+        dt=dt,
+        log_level=2
+    )
 
-print("Simulation time: ", t_elapsed)
+    t_start = perf_counter()
+    m.run()
+    t_end = perf_counter()
+    t_elapsed = t_end - t_start
+
+    print(f"{M = }, Simulation time: ", t_elapsed)

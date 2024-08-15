@@ -1,10 +1,13 @@
 using LinearAlgebra
-using JLD
-using LinearSolve
 
 include("schemes/arakawa.jl")
 include("schemes/helmholtz.jl")
 include("schemes/boundary_conditions.jl")
+
+const MINUTES = 60
+const DAY = 60*60*24
+const KM = 1000.0
+const YEAR = 60*60*24*365
 
 struct BaroclinicModel
     H_1::Float64 # The height of the first layer in metres.
@@ -115,9 +118,7 @@ function AB3(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::
     f1 = f(model, zeta[:,:,z,1], psi[:,:,z,1])
     f2 = f(model, zeta[:,:,z,2], psi[:,:,z,2])
     f3 = f(model, zeta[:,:,z,3], psi[:,:,z,3])
-    
     update = (model.dt .* ((23/12).*f1 - (16/12).*f2 + (5/12).*f3))
-    
     return zeta[:,:,z,1] .+ update
 end
 
@@ -126,21 +127,8 @@ function zeta_f1(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Floa
     v_term = model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx)
     J_term = J(model.dx, zeta, psi)
     beta_term = beta_1(model)*cd(psi, model.dx)
-    U_term = model.U*cd(zeta, model.dx)
-    
-    # println("Zeta Layer 1")
-    # println(v_term[10,10])
-    # println(J_term[10,10])
-    # println(beta_term[10,10])
-    # println(U_term[10,10], "\n")
-    
+    U_term = model.U*cd(zeta, model.dx)    
     return v_term - J_term - beta_term - U_term 
-    # return begin
-    #     model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx)
-    #     - J(model.dx, zeta, psi)
-    #     - beta_1(model)*cd(psi, model.dx)
-    #     - model.U*cd(zeta, model.dx)
-    # end
 end
 
 function zeta_f2(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Float64})
@@ -148,21 +136,7 @@ function zeta_f2(model::BaroclinicModel, zeta::Matrix{Float64}, psi::Matrix{Floa
     J_term = J(model.dx, zeta, psi)
     beta_term = beta_2(model)*cd(psi, model.dx)
     r_term = model.r*laplace_5p(psi, model.dx)
-
-    # println("Zeta Layer 2")
-    # println(v_term[10,10])
-    # println(J_term[10,10])
-    # println(beta_term[10,10])
-    # println(r_term[10,10], "\n")
-
     return v_term - J_term - beta_term - r_term
-
-    # return begin
-    #     model.visc*laplace_5p(laplace_5p(psi, model.dx), model.dx) # Apply ghost cells between laplacian applications.
-    #     - J(model.dx, zeta, psi)
-    #     - beta_2(model)*cd(psi, model.dx) 
-    #     - model.r*laplace_5p(psi, model.dx) # Bottom friction
-    # end
 end
 
 function evolve_zeta!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, timestep::Int)
@@ -178,10 +152,7 @@ function evolve_zeta_layer!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi
         store_new_state!(zeta, new_zeta, layer)
     else
         # AB3 for subsequent steps. 
-        
-        # println("old zeta: ", zeta[10,10,layer,1])
         new_zeta = AB3(model, f, zeta, psi, layer)
-        # println("new zeta: ", new_zeta[10,10])
         update_doubly_periodic_bc!(new_zeta)
         store_new_state!(zeta, new_zeta, layer)
     end

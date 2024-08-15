@@ -1,7 +1,5 @@
 using LinearAlgebra
 using SparseArrays
-using LinearSolve
-using SuiteSparse
 
 # Boundary conditions
 include("boundary_conditions.jl")

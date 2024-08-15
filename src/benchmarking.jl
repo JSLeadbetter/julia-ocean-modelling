@@ -1,60 +1,60 @@
 using BenchmarkTools
-using LinearSolve
 
-include("run_model.jl")
-
-# const MINUTES = 60
-# const DAY = 60*60*24
-# const KM = 1000.0
-# const YEAR = 60*60*24*365
+include("run_model_no_output.jl")
 
 H_1 = 1.0*KM
 H_2 = 2.0*KM
 beta = 2*10^-11
 Lx = 4000.0*KM # 4000 km
 Ly = 4000.0*KM # 2000 km
-dt = 15.0*MINUTES # 30 minutes
-T = 1.0*YEAR  # Expect to wait 90 days before seeing things.
+dt = 120.0*MINUTES # 30 minutes
+T = 0.5*YEAR  # Expect to wait 90 days before seeing things.
 U = 0.1 # Forcing term of top level.
-M = P = 128
-dx = Lx / M
-# P = Int(Ly / dx)
+# M = P = 16
+# dx = Lx / M
 visc = 100.0 # Viscosity, 100m^2s^-1
 r = 10^-7 # bottom friction scaler.
 R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
 initial_kick = 1e-6
 
-model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
-@time run_model(model, "", false)
+M_list = [16, 32, 64, 128]
 
-# poisson_linsolve = get_poisson_linsolve_A(model.M, model.P, model.dx)
+for M in M_list
+    P = M
+    dx = Lx / M
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
+    println("Benchmark time, M = $M")
+    @btime run_model_no_output(model)
+end
 
-# println("Poisson linsolve")
-# @btime get_poisson_linsolve_A(model.M, model.P, model.dx)
-# # @btime helmholtz_linsolve = get_helmholtz_linsolve_A(model.M, model.P, model.dx, S_eig(model))
-# # chol_fac = get_cholesky_factorisation(model.M, model.P, model.dx, 0.0)
-# # @btime get_cholesky_factorisation(model.M, model.P, model.dx, S_eig(model))
+# one_step_model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, dt, U, M, P, dx, visc, r, R_d, initial_kick)
 
-# A = -construct_spA(M, P, dx, 0.0)
+# println("Full model:")
+# @btime run_model_no_output(model)
 
-# # Ensure matrix is positive definite by reducing number of unknowns.
-# A[:,1] .= 0
-# A[1,:] .= 0
-# A[1, 1] = 1
+# println("One step model:")
+# @btime run_model_no_output(one_step_model)
 
-# println(typeof(A))
-
-# @assert typeof(A) == SparseMatrixCSC{Float64, Int64}
-
-# println("Cholesky factorisation")
-# @btime cholesky(A)
-# chol_A = cholesky(A)#LinearSolve.factorize(A)
-
+# helm_chol = get_helmholtz_cholesky(M, P, dx, S_eig(model))
+# poisson_chol = get_poisson_cholesky(M, P, dx)
+# println("Helmholtz chol:")
+# @btime get_helmholtz_cholesky(M, P, dx, S_eig(model))
 
 # zeta, psi = initialise_model(model)
 
+# println("Evolve psi:")
+# @btime evolve_psi!(model, zeta, psi, poisson_chol, helm_chol)
+
+# println("Evolve zeta:")
+# @btime evolve_zeta!(model, zeta, psi, 1)
 # zeta_1 = zeta[:,:,1,1]
 # psi_1 = psi[:,:,1,1]
+
+# println("Viscosity Laplacian:")
+# @btime model.visc*laplace_5p(laplace_5p(psi_1, model.dx), model.dx)
+
+# println("AB3")
+# @btime AB3(model, zeta_f1, zeta, psi, 1)
 
 # P = P_matrix(model.H_1, model.H_1)
 # P_inv = P_inv_matrix(model)
@@ -114,8 +114,7 @@ model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d
 # println("Evolve Psi:")
 # @btime evolve_psi!(model, zeta, psi, poisson_linsolve, helmholtz_linsolve)
 
-# println("Viscosity Laplacian:")
-# @btime model.visc*laplace_5p(laplace_5p(psi_1, model.dx), model.dx)
+
 
 # println("Arakawa Jacobian:")
 # @btime J(model.dx, zeta_1, psi_1)

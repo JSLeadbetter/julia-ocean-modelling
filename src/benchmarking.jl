@@ -17,7 +17,7 @@ r = 10^-7 # bottom friction scaler.
 R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
 initial_kick = 1e-6
 
-M_list = [16, 32, 64, 128]
+M_list = [8, 16, 32]
 
 for M in M_list
     P = M

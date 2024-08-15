@@ -1,7 +1,7 @@
 using LinearAlgebra
 
 include("schemes/arakawa.jl")
-include("schemes/helmholtz.jl")
+include("schemes/laplacian.jl")
 include("schemes/boundary_conditions.jl")
 
 const MINUTES = 60

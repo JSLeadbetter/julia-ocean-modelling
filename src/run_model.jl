@@ -2,8 +2,6 @@ using ProgressBars
 using JLD
 
 include("model.jl")
-include("schemes/helmholtz.jl")
-include("schemes/boundary_conditions.jl")
 
 function create_metadata(model::BaroclinicModel)
     sample_interval = 1.0*DAY

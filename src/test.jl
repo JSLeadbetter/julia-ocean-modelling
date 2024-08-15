@@ -3,7 +3,7 @@ using LinearAlgebra
 using CurveFit
 using Plots
 
-include("schemes/helmholtz.jl")
+include("schemes/laplacian.jl")
 include("schemes/arakawa.jl")
 include("model.jl")
 

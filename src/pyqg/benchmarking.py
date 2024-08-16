@@ -6,22 +6,39 @@ MINUTE = 60
 
 dt = 30.0*MINUTE
 T = 0.25*YEAR
+M_list = [8, 16, 24, 32]
 
-M_list = [16, 32, 64, 128]
+sample_size = 50
+min_runtimes = []
 
 for M in M_list:
-    m = pyqg.QGModel(
-        tmax=T,
-        twrite=10000,
-        tavestart=5*YEAR,
-        nx=M,
-        dt=dt,
-        log_level=2
-    )
+    
+    runtimes = []
 
-    t_start = perf_counter()
-    m.run()
-    t_end = perf_counter()
-    t_elapsed = t_end - t_start
+    for i in range(sample_size):
+        m = pyqg.QGModel(
+            tmax=T,
+            twrite=10000,
+            tavestart=5*YEAR,
+            nx=M,
+            dt=dt,
+            log_level=2
+        )
 
-    print(f"{M = }, Simulation time: ", t_elapsed)
+        t_start = perf_counter()
+        m.run()
+        t_end = perf_counter()
+
+        t_elapsed = t_end - t_start
+
+        runtimes.append(t_elapsed)
+
+    min_runtime = min(runtimes)
+    min_runtimes.append(min_runtime)
+
+for i in range(len(M_list)):
+    M = M_list[i]
+    t = min_runtimes[i]
+    
+    print(f"{M = }, Min runtime: {t = }")
+

@@ -7,8 +7,7 @@ H_2 = 2.0*KM
 beta = 2*10^-11
 Lx = 4000.0*KM # 4000 km
 Ly = 4000.0*KM # 2000 km
-dt = 30.0*MINUTES # 30 minutes
-T = 0.25*YEAR  # Expect to wait 90 days before seeing things.
+
 U = 0.1 # Forcing term of top level.
 # M = P = 16
 # dx = Lx / M
@@ -17,7 +16,9 @@ r = 10^-7 # bottom friction scaler.
 R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
 initial_kick = 1e-6
 
-M_list = [8, 16, 32]
+dt = 30.0*MINUTES # 30 minutes
+T = 0.25*YEAR  # Expect to wait 90 days before seeing things.
+M_list = [8, 16, 24, 32]
 
 for M in M_list
     P = M

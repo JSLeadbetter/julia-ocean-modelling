@@ -128,7 +128,7 @@ function show_animation(file_name::String, fps::Int)
         fontsize = 24, tellwidth = false)
 
     ax_top_left = Axis(ga[1, 1], title="Zeta Layer 1")
-    ax_bottom_left = Axis(ga[2, 1], title="Zeta Layer 2")
+    ax_bottom_left = Axis(ga[2, 1], title="Zeta Layer 2", )
     ax_top_right = Axis(ga[1, 3], title="Psi Layer 1")
     ax_bottom_right = Axis(ga[2, 3], title="Psi Layer 2")
 

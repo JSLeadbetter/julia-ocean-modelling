@@ -96,7 +96,6 @@ function sp_solve_modified_helmholtz(M::Int, P::Int, dx::Float64, f::Matrix{Floa
     b[1] = 0
 
     u = reshape(chol_A \ b, (M, P))
-    # u = reshape(solve(linsolve).u, (M, P))
     return add_doubly_periodic_boundaries(u)
 end
 

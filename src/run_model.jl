@@ -38,7 +38,33 @@ function log_model_params(model::BaroclinicModel)
     println("Total steps = ", total_steps, "\n")
 end
 
+function update_max(current_max::Float64, matrix::Matrix)
+    if maximum(matrix) > current_max
+        return maximum(matrix)
+    end
+    return current_max
+end
+
+function update_min(current_min::Float64, matrix::Matrix)
+    if minimum(matrix) < current_min
+        return minimum(matrix)
+    end
+    return current_min
+end
+
 function run_model(model::BaroclinicModel, file_name::String, save_results::Bool)
+    log_model_params(model)
+
+    sample_interval = 1.0*DAY
+    sample_timestep = 2*floor(Int, sample_interval / model.dt)
+
+    @time "Time to Cholesky factorise Poisson system" poisson_chol_fact = get_poisson_cholesky(model.M, model.P, model.dx)
+    @time "Time to Cholesky factorise modified Helmholtz system" helmholtz_chol_fact = get_helmholtz_cholesky(model.M, model.P, model.dx, S_eig(model))
+
+    total_steps = floor(Int, model.T / model.dt)
+
+    f_store = zeros(model.M+2, model.P+2, 2, 3)
+
     zeta, psi = initialise_model(model)
 
     if save_results
@@ -52,21 +78,7 @@ function run_model(model::BaroclinicModel, file_name::String, save_results::Bool
         end
     end 
 
-    log_model_params(model)
-
-    sample_interval = 1.0*DAY
-    sample_timestep = 2*floor(Int, sample_interval / model.dt)
-
-    @time "Time to Cholesky factorise Poisson system" poisson_chol_fact = get_poisson_cholesky(model.M, model.P, model.dx)
-    @time "Time to Cholesky factorise modified Helmholtz system" helmholtz_chol_fact = get_helmholtz_cholesky(model.M, model.P, model.dx, S_eig(model))
-
-    total_steps = floor(Int, model.T / model.dt)
-
-    f_store = zeros(model.M+2, model.P+2, 2, 3)
-
     println("Running simulation... \n")
-
-    # for timestep in 1:total_steps
     for timestep in ProgressBar(1:total_steps)
         evolve_zeta!(model, zeta, psi, timestep, f_store)
         evolve_psi!(model, zeta, psi, poisson_chol_fact, helmholtz_chol_fact)
@@ -83,25 +95,25 @@ function run_model(model::BaroclinicModel, file_name::String, save_results::Bool
 end
 
 function main()
-    H_1 = 0.5*KM
+    H_1 = 1.0*KM
     H_2 = 2.0*KM
     beta = 2*10^-11
     Lx = 4000.0*KM # 4000 km
     Ly = 4000.0*KM # 2000 km
-    dt = 15.0*MINUTES # 30 minutes
-    T = 10.0YEAR  # Expect to wait 90 days before seeing things.
+    dt = 30.0*MINUTES # 30 minutes
+    T = 5.0YEAR  # Expect to wait 90 days before seeing things.
     U = 0.1 # Forcing term of top level.
-    M = P = 256
+    M = P = 128
     dx = Lx / M
     # P = Int(Ly / dx)
     visc = 100.0 # Viscosity, 100m^2s^-1
     r = 10^-8 # bottom friction scaler.
     R_d = 40.0*KM # Deformation radius, ~40km. Using 60km for better numerics.
-    initial_kick = 1e-6
+    initial_kick = 1e-4
 
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
-    sim_name = "thinner_upper"
+    sim_name = "testing_fixed_BC"
     data_file_name = "data/$sim_name.jld"
 
     println("Saving simulation results to: ", data_file_name)
@@ -109,4 +121,4 @@ function main()
     run_model(model, data_file_name, true)
 end
 
-# @time "\n Total runtime:" main()
+@time "\n Total runtime:" main()

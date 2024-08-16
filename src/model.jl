@@ -35,6 +35,8 @@ BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initia
 
 """Initialise the model with a small random psi and then calculate zeta directly."""
 function initialise_model(model::BaroclinicModel)
+    @assert sign(beta_1(model)) == -sign(beta_2(model))
+    
     # Initialise psi with random scaled noise.
     psi_1 = model.initial_kick * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2))
     psi_2 = model.initial_kick * model.U * model.Ly * rand(Float64, (model.M+2, model.P+2)) 
@@ -44,6 +46,9 @@ function initialise_model(model::BaroclinicModel)
 
     zeta_1 = laplace_5p(psi_1, model.dx) + S1_plus(model) * (psi_2 - psi_1)
     zeta_2 = laplace_5p(psi_2, model.dx) + S2_minus(model) * (psi_1 - psi_2)
+
+    update_doubly_periodic_bc!(zeta_1)
+    update_doubly_periodic_bc!(zeta_2)
 
     zeta = zeros(model.M+2, model.P+2, 2, 3)
     psi = zeros(model.M+2, model.P+2, 2, 3)
@@ -121,16 +126,11 @@ function eulers_method(model::BaroclinicModel, f::Function, zeta::Array{Float64,
     return zeta[:,:,z,1] + (model.dt .* f1)
 end
 
-# TODO: Store f1 f2 f3.
 function AB3(model::BaroclinicModel, f::Function, zeta::Array{Float64, 4}, psi::Array{Float64, 4}, z::Int, f_store::Array{Float64, 4})
     f1 = f(model, zeta[:,:,z,1], psi[:,:,z,1])
     store_new_state!(f_store, f1, z) 
-    
-    f2 = f_store[:,:,z,2]
-    f3 = f_store[:,:,z,3]
-    
-    # f2 = f(model, zeta[:,:,z,2], psi[:,:,z,2])
-    # f3 = f(model, zeta[:,:,z,3], psi[:,:,z,3])
+    f2 = view(f_store, :, :, z, 2)
+    f3 = view(f_store, :, :, z, 3)
     update = (model.dt .* ((23/12).*f1 - (16/12).*f2 + (5/12).*f3))    
     return zeta[:,:,z,1] .+ update
 end

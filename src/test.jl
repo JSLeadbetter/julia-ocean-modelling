@@ -3,14 +3,7 @@ using LinearAlgebra
 using CurveFit
 using Plots
 
-include("schemes/laplacian.jl")
-include("schemes/arakawa.jl")
 include("model.jl")
-
-const MINUTES = 60
-const DAY = 60*60*24
-const KM = 1000.0
-const YEAR = 60*60*24*365
 
 @testset "Parameter Values" begin
     H_1 = 1.0*KM
@@ -56,8 +49,6 @@ end
     ys = 1:10
     u = Matrix{Float64}(inflate(f, xs, ys))
     dx = 1.0
-
-    # true_ux
 end
 
 

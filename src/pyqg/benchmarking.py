@@ -1,12 +1,14 @@
 import pyqg
 from time import perf_counter
+import pandas as pd
 
-YEAR = 24*60*60*360.0
+YEAR = 24*60*60*365.0
 MINUTE = 60
+DAY = 60 * 60 * 24
 
 dt = 30.0*MINUTE
-T = 0.25*YEAR
-M_list = [8, 16, 24, 32]
+T = 30*DAY
+M_list = [8, 16, 32, 64, 128]
 
 sample_size = 50
 min_runtimes = []
@@ -35,6 +37,14 @@ for M in M_list:
 
     min_runtime = min(runtimes)
     min_runtimes.append(min_runtime)
+
+
+df = pd.DataFrame({
+    "M": M_list,
+    "Time": min_runtimes
+})
+
+df.to_csv("python_data.csv")
 
 for i in range(len(M_list)):
     M = M_list[i]

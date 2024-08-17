@@ -1,4 +1,4 @@
-using BenchmarkTools
+using BenchmarkTools, CSV, DataFrames
 
 include("run_model_no_output.jl")
 
@@ -16,17 +16,34 @@ r = 10^-7 # bottom friction scaler.
 R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
 initial_kick = 1e-6
 
-dt = 30.0*MINUTES # 30 minutes
-T = 0.25*YEAR  # Expect to wait 90 days before seeing things.
-M_list = [8, 16, 24, 32]
+dt = 30.0MINUTES # 30 minutes
+T = 30.0DAY  # Expect to wait 90 days before seeing things.
+M_list = [8, 16, 32, 64, 128]
+times = zeros(size(M_list)[1])
 
-for M in M_list
+for (i, M) in enumerate(M_list)
     P = M
     dx = Lx / M
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
-    println("Benchmark time, M = $M")
-    @btime run_model_no_output($model)
+    println("M = $M")
+    
+    t = @belapsed run_model_no_output($model) samples=50 seconds=300
+    
+    println(t)
+    
+    times[i] = t
+    
+    # display(@benchmark run_model_no_output($model) samples=50 seconds=60)
 end
+
+df = DataFrame("M" => M_list, "Time" => times)
+CSV.write("julia_benchmark_times.csv", df)
+
+# M = M_list[1]
+# P = M[1]
+# dx = Lx / M
+# model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
+# display(@benchmark run_model_no_output(model) samples=50)
 
 # one_step_model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, dt, U, M, P, dx, visc, r, R_d, initial_kick)
 

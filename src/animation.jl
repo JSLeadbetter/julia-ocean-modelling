@@ -33,14 +33,14 @@ function create_mp4(data_file_name::String, animation_file_name::String, fps::In
     zeta = load_matrix(0, data_file_name, "zeta")
     psi = load_matrix(0, data_file_name, "psi")
 
-    zeta_top_shifted = circshift(zeta[:,:,1], shift_amounts)
-    zeta_bottom_shifted = circshift(zeta[:,:,2], shift_amounts)
+    zeta_top_shifted = circshift(zeta[2:end-1,2:end-1,1], shift_amounts)
+    zeta_bottom_shifted = circshift(zeta[2:end-1,2:end-1,2], shift_amounts)
 
     zeta_top_plot = Observable(zeta_top_shifted)
     zeta_bottom_plot = Observable(zeta_bottom_shifted)
 
-    psi_top_shifted = circshift(psi[:,:,1], shift_amounts)
-    psi_bottom_shifted = circshift(psi[:,:,2], shift_amounts)
+    psi_top_shifted = circshift(psi[2:end-1,2:end-1,1], shift_amounts)
+    psi_bottom_shifted = circshift(psi[2:end-1,2:end-1,2], shift_amounts)
 
     psi_top_plot = Observable(psi_top_shifted)
     psi_bottom_plot = Observable(psi_bottom_shifted)
@@ -72,14 +72,14 @@ function create_mp4(data_file_name::String, animation_file_name::String, fps::In
         zeta = load_matrix(Int(timestep), data_file_name, "zeta")
         psi = load_matrix(Int(timestep), data_file_name, "psi")
 
-        zeta_top_shifted = circshift(zeta[:,:,1], shift_amounts)
-        zeta_bottom_shifted = circshift(zeta[:,:,2], shift_amounts) 
+        zeta_top_shifted = circshift(zeta[2:end-1,2:end-1,1], shift_amounts)
+        zeta_bottom_shifted = circshift(zeta[2:end-1,2:end-1,2], shift_amounts) 
 
         zeta_top_plot[] = zeta_top_shifted
         zeta_bottom_plot[] = zeta_bottom_shifted
 
-        psi_top_shifted = circshift(psi[:,:,1], shift_amounts)
-        psi_bottom_shifted = circshift(psi[:,:,2], shift_amounts) 
+        psi_top_shifted = circshift(psi[2:end-1,2:end-1,1], shift_amounts)
+        psi_bottom_shifted = circshift(psi[2:end-1,2:end-1,2], shift_amounts) 
 
         psi_top_plot[] = psi_top_shifted
         psi_bottom_plot[] = psi_bottom_shifted

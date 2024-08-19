@@ -20,6 +20,8 @@ dt = 30.0MINUTES # 30 minutes
 T = 30.0DAY  # Expect to wait 90 days before seeing things.
 M_list = [8, 16, 32, 64, 128]
 times = zeros(size(M_list)[1])
+sample_size = 1
+seconds = 300 # Seconds to wait before stopping benchmarking.
 
 for (i, M) in enumerate(M_list)
     P = M
@@ -27,7 +29,7 @@ for (i, M) in enumerate(M_list)
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
     println("M = $M")
     
-    t = @belapsed run_model_no_output($model) samples=50 seconds=300
+    t = @belapsed run_model_no_output($model) samples=sample_size seconds=seconds
     
     println(t)
     

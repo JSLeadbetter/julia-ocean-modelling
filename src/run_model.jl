@@ -99,21 +99,21 @@ function main()
     H_2 = 2.0*KM
     beta = 2*10^-11
     Lx = 4000.0*KM # 4000 km
-    Ly = 4000.0*KM # 2000 km
-    dt = 30.0*MINUTES # 30 minutes
-    T = 5.0YEAR  # Expect to wait 90 days before seeing things.
+    Ly = 2000.0*KM # 2000 km
+    dt = 5.0*MINUTES # 30 minutes
+    T = 3.0YEAR  # Expect to wait 90 days before seeing things.
     U = 0.1 # Forcing term of top level.
-    M = P = 128
+    M = 256
     dx = Lx / M
-    # P = Int(Ly / dx)
+    P = Int(Ly / dx)
     visc = 100.0 # Viscosity, 100m^2s^-1
     r = 10^-8 # bottom friction scaler.
     R_d = 40.0*KM # Deformation radius, ~40km. Using 60km for better numerics.
-    initial_kick = 1e-4
+    initial_kick = 1e-2
 
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
-    sim_name = "testing_fixed_BC"
+    sim_name = "rectangle_test_256"
     data_file_name = "data/$sim_name.jld"
 
     println("Saving simulation results to: ", data_file_name)

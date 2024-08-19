@@ -10,7 +10,7 @@ dt = 30.0*MINUTE
 T = 30*DAY
 M_list = [8, 16, 32, 64, 128]
 
-sample_size = 50
+sample_size = 1
 min_runtimes = []
 
 for M in M_list:

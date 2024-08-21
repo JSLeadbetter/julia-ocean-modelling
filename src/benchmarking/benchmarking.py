@@ -6,11 +6,11 @@ YEAR = 24*60*60*365.0
 MINUTE = 60
 DAY = 60 * 60 * 24
 
-dt = 30.0*MINUTE
-T = 30*DAY
+dt = 60.0*MINUTE
+T = 7*DAY
 M_list = [8, 16, 32, 64, 128]
 
-sample_size = 1
+sample_size = 50
 min_runtimes = []
 
 for M in M_list:

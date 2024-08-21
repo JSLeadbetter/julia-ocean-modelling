@@ -172,7 +172,7 @@ function show_animation(file_name::String, fps::Int)
     wait(display(fig))
 end
 
-begin
+if abspath(PROGRAM_FILE) == @__FILE__
     data_file = ARGS[1]
     fps = 30
     

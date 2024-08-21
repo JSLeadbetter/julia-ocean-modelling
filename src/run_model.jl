@@ -101,7 +101,7 @@ function main()
     Lx = 4000.0*KM # 4000 km
     Ly = 2000.0*KM # 2000 km
     dt = 5.0*MINUTES # 30 minutes
-    T = 3.0YEAR  # Expect to wait 90 days before seeing things.
+    T = 3.0YEAR
     U = 0.1 # Forcing term of top level.
     M = 256
     dx = Lx / M

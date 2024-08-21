@@ -189,7 +189,7 @@ function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array
     new_psi_tilde_1 = add_doubly_periodic_boundaries(u) 
     
     # Solve the modified Helmholtz problem for the bottom layer.
-    b = -vec(copy(zeta_tilde[2:end-1,2:end-1,2,1])); b[1] = 0
+    b = -vec(copy(zeta_tilde[2:end-1,2:end-1,2,1]))
     u = reshape(helmholtz_cholesky \ b, (model.M, model.P)) 
     new_psi_tilde_2 = add_doubly_periodic_boundaries(u) 
 

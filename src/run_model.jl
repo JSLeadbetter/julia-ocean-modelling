@@ -101,9 +101,9 @@ function main()
     Lx = 4000.0*KM # 4000 km
     Ly = 2000.0*KM # 2000 km
     dt = 5.0*MINUTES # 30 minutes
-    T = 3.0YEAR
+    T = 8.0YEAR
     U = 0.1 # Forcing term of top level.
-    M = 256
+    M = 512
     dx = Lx / M
     P = Int(Ly / dx)
     visc = 100.0 # Viscosity, 100m^2s^-1
@@ -113,7 +113,7 @@ function main()
 
     model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
 
-    sim_name = "rectangle_test_256"
+    sim_name = "second_fully_correct"
     data_file_name = "data/$sim_name.jld"
 
     println("Saving simulation results to: ", data_file_name)

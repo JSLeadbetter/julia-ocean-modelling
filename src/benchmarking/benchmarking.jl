@@ -2,6 +2,7 @@ using BenchmarkTools, CSV, DataFrames
 
 include("../run_model_no_output.jl")
 
+
 H_1 = 1.0*KM
 H_2 = 2.0*KM
 beta = 2*10^-11
@@ -17,7 +18,7 @@ R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
 initial_kick = 1e-6
 
 dt = 60.0MINUTES # 30 minutes
-T = 7.0DAY  # Expect to wait 90 days before seeing things.
+T = 1.0DAY  # Expect to wait 90 days before seeing things.
 M_list = [8, 16, 32, 64, 128]
 times = zeros(size(M_list)[1])
 sample_size = 50

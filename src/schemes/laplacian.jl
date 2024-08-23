@@ -1,10 +1,7 @@
 using LinearAlgebra
 using SparseArrays
 
-# Boundary conditions
 include("boundary_conditions.jl")
-
-inflate(f, xs, ys) = [f(x,y) for x in xs, y in ys]
 
 struct RectangularDomain
     x1::Float64
@@ -13,7 +10,7 @@ struct RectangularDomain
     y2::Float64
 end
 
-# https://discourse.julialang.org/t/finite-difference-laplacian-with-five-point-stencil/25014
+# Based on: https://discourse.julialang.org/t/finite-difference-laplacian-with-five-point-stencil/25014
 """Matrix-free five-point Laplacian scheme with doubly periodic boundary conditions."""
 function laplace_5p(u::Matrix{Float64}, dx::Float64)
     M, P = size(u)
@@ -61,28 +58,20 @@ function construct_spA(M::Int, P::Int, dx::Float64, alpha::Float64)
 end
 
 function get_helmholtz_cholesky(M::Int, P::Int, dx::Float64, alpha::Float64)
-    # Negative so matrix is positive semi-definite.
+    # Negative so matrix is positive definite (for alpha != 0).
     A = -construct_spA(M, P, dx, alpha)
-
-    # Ensure matrix is positive definite by reducing number of unknowns.
-    A[:,1] .= 0
-    A[1,:] .= 0
-    A[1, 1] = 1
-
     return cholesky(A)
 end
 
 function get_poisson_cholesky(M::Int, P::Int, dx::Float64)
-    return get_helmholtz_cholesky(M, P, dx, 0.0)
-end
+    # Negative so matrix is positive semi-definite.
+    A = -construct_spA(M, P, dx, 0.0)
 
-"""Extend a matrix by two rows and columns and copies rows/cols to add double periodicity."""
-function add_doubly_periodic_boundaries(u::Matrix{Float64})
-    M, P = size(u)
-    extended_u = zeros(M+2, P+2)
-    extended_u[2:end-1, 2:end-1] = u
-    update_doubly_periodic_bc!(extended_u)
-    return extended_u
+    # Ensure matrix is positive definite by fixing a point and making the kernel trivial.
+    A[:,1] .= 0
+    A[1,:] .= 0
+    A[1, 1] = 1
+    return cholesky(A)
 end
 
 """Doubly periodic boundary conditions. Does not cache A factorisation so should only be used in single use cases."""
@@ -92,22 +81,31 @@ function sp_solve_modified_helmholtz(M::Int, P::Int, dx::Float64, f::Matrix{Floa
     # Select the inner square of the domain to perform the solve on.
     b = -vec(copy(f[2:end-1, 2:end-1]))
     
+    u = reshape(chol_A \ b, (M, P))
+    return add_doubly_periodic_boundaries(u)
+end
+
+"""Solve the modified Helmholtz problem on a rectangular, doubly-periodic domain."""
+function sp_solve_modified_helmholtz(M::Int, P::Int, dx::Float64, f_rhs::Function, alpha::Float64, domain::RectangularDomain)
+    # Range includes extra index at each end for ghost cell.
+    xs = range(domain.x1 - dx, domain.x2, length=M+2)
+    ys = range(domain.y1 - dx, domain.y2, length=P+2)
+    
+    inflate(f, xs, ys) = [f(x,y) for x in xs, y in ys]
+    b = inflate(f_rhs, xs, ys)
+    
+    return sp_solve_modified_helmholtz(M, P, dx, b, alpha)
+end
+
+function sp_solve_poisson(M::Int, P::Int, dx::Float64, f::Matrix{Float64})
+    chol_A = get_poisson_cholesky(M, P, dx)
+
+    # Select the inner square of the domain to perform the solve on.
+    b = -vec(copy(f[2:end-1, 2:end-1]))
+    
     # Reduce the number of unknowns to ensure system is positive definite.
     b[1] = 0
 
     u = reshape(chol_A \ b, (M, P))
     return add_doubly_periodic_boundaries(u)
-end
-
-"""Solve the modified Helmholtz problem on a rectangular domain. Doubly periodic boundary conditions."""
-function sp_solve_modified_helmholtz(M::Int, P::Int, dx::Float64, f::Function, alpha::Float64, domain::RectangularDomain)
-    # Range includes extra index at each end for ghost cell.
-    xs = range(domain.x1 - dx, domain.x2, length=M+2)
-    ys = range(domain.y1 - dx, domain.y2, length=P+2)
-    b = inflate(f, xs, ys)
-    return sp_solve_modified_helmholtz(M, P, dx, b, alpha)
-end
-
-function sp_solve_poisson(M::Int, P::Int, dx::Float64, f::Matrix{Float64})
-    return sp_solve_modified_helmholtz(M, P, dx, f, alpha)
 end

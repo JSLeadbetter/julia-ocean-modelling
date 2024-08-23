@@ -15,10 +15,10 @@ R_d = 40.0*KM # Deformation radious, ~40km. Using 60km for better numerics.
 initial_kick = 1e-6
 
 dt = 30.0MINUTES # 30 minutes
-T = 30.0DAY  # Expect to wait 90 days before seeing things.
-M_list = [8, 16, 32, 64, 128]
+T = 1.0DAY  # Expect to wait 90 days before seeing things.
+M_list = 8:8:128
 sample_size = 50
-evals_size = 50
+evals_size = 100
 seconds = 120 # Seconds to wait before stopping benchmarking.
 
 total_times = zeros(size(M_list)[1])
@@ -30,10 +30,10 @@ poisson_times = zeros(size(M_list)[1])
 for (i, M) in enumerate(M_list)
     P = M
     dx = Lx / M
-    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, dt, U, M, P, dx, visc, r, R_d, initial_kick)
+    model = BaroclinicModel(H_1, H_2, beta, Lx, Ly, dt, T, U, M, P, dx, visc, r, R_d, initial_kick)
     println("Benchmarking for M = $M")
     
-    @time "total benchmarktime" total_times[i] = @belapsed run_model_no_output($model) samples=sample_size seconds=seconds evals=evals_size
+    total_times[i] = @belapsed run_model_no_output($model) samples=sample_size seconds=seconds evals=evals_size
     
     f_store = zeros(model.M+2, model.P+2, 2, 3)
     helm_chol = get_helmholtz_cholesky(M, P, dx, S_eig(model))
@@ -44,12 +44,12 @@ for (i, M) in enumerate(M_list)
     poisson_times[i] = @belapsed get_poisson_cholesky($M, $P, $dx)
 
     # @btime get_helmholtz_cholesky(M, P, dx, S_eig(model))
-    @time "psi bench time" psi_times[i] = @belapsed evolve_psi!($model, $zeta, $psi, $poisson_chol, $helm_chol) samples=sample_size seconds=seconds evals=evals_size
-    @time "zeta bench time" zeta_times[i] = @belapsed evolve_zeta!($model, $zeta, $psi, 1, $f_store) samples=sample_size seconds=seconds evals=evals_size
+    psi_times[i] = @belapsed evolve_psi!($model, $zeta, $psi, $poisson_chol, $helm_chol) samples=sample_size seconds=seconds evals=evals_size
+    zeta_times[i] = @belapsed evolve_zeta!($model, $zeta, $psi, 1, $f_store) samples=sample_size seconds=seconds evals=evals_size
 end
 
 df = DataFrame("M" => M_list, "total_time" => total_times, "psi_time" => psi_times, "zeta_time" => zeta_times, "helmholtz_time" => helm_times, "poisson_times" => poisson_times)
-CSV.write("julia_parts_benchmark.csv", df)
+CSV.write("julia_parts_benchmark4.csv", df)
 
 # M = M_list[1]
 # P = M[1]

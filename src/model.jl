@@ -161,12 +161,10 @@ function evolve_zeta_layer!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi
     if timestep == 1 || timestep == 2    
         # Euler's methed for the first and second step.
         new_zeta = eulers_method(model, f, zeta, psi, layer, f_store)
-        # update_doubly_periodic_bc!(new_zeta)
         store_new_state!(zeta, new_zeta, layer)
     else
         # AB3 for subsequent steps. 
         new_zeta = AB3(model, f, zeta, psi, layer, f_store)
-        # update_doubly_periodic_bc!(new_zeta)
         store_new_state!(zeta, new_zeta, layer)
     end
 end
@@ -196,7 +194,6 @@ function evolve_psi!(model::BaroclinicModel, zeta::Array{Float64, 4}, psi::Array
     # Baroclinic projection to get back to zeta and psi.
     for i in 1:2
         new_psi = P[i,1]*new_psi_tilde_1 + P[i,2]*new_psi_tilde_2
-        # update_doubly_periodic_bc!(new_psi)
         store_new_state!(psi, new_psi, i)
     end
 end

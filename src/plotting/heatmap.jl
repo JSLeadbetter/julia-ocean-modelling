@@ -9,7 +9,7 @@ const YEAR = 60*60*24*365
 data_file_name = ARGS[1]
 
 # 14.44 = Roughly similar to 11pt in Latex.
-fontsize = 24
+fontsize = 28
 
 metadata = get_metadata(data_file_name)
 sample_timestep = metadata["sample_timestep"]
@@ -28,6 +28,12 @@ end
 # 1000 - before breakdown, nice vertical lines.
 # 1200 - just after breakdown, good show of initial mixing.
 # 3000 - Good jets.
+
+# second_fully_correct
+# 350 good vertical stripes
+# 500
+# 1000
+# 2000
 
 sample_no = ARGS[2]
 
@@ -60,7 +66,7 @@ zeta_top = zeta[:,:,1]
 fig = Figure(size = (1200, 800), figure_padding = 10)
 ga = fig[1, 1] = GridLayout()
 
-ax = Axis(ga[1, 1], xlabel="")
+ax = Axis(ga[1, 1], xlabel="x (m)", ylabel="y (m)")
 
 ax.xlabelsize = fontsize
 ax.xticklabelsize = fontsize

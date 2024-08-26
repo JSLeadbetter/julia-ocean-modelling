@@ -177,11 +177,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
     fps = 30
     
     # Display animation
-    println("Showing animation for datafile: ", data_file)
-    show_animation(data_file, 30)
+    # println("Showing animation for datafile: ", data_file)
+    # show_animation(data_file, 30)
     
     # Create .mp4 file.
-    # animation_file_name = "its_working.mp4"
-    # println("Creating .mp4 for datafile: ", data_file)
-    # create_mp4(data_file, animation_file_name, 30) 
+    animation_file_name = "paper_animation.mp4"
+    println("Creating .mp4 for datafile: ", data_file)
+    create_mp4(data_file, animation_file_name, 30) 
 end
